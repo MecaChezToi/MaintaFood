@@ -23,13 +23,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<any>(null)
   const [loading, setLoading] = useState(true)
 
+  const loadProfileFast = async (userId: string) => {
+    const cached = sessionStorage.getItem(`profile:${userId}`)
+    if (cached) {
+      try { setUser(JSON.parse(cached)) } catch {}
+    }
+    const profile = await profilesApi.getById(userId)
+    if (profile) {
+      sessionStorage.setItem(`profile:${userId}`, JSON.stringify(profile))
+      setUser(profile)
+    } else {
+      setUser(null)
+    }
+  }
+
   useEffect(() => {
     // Charger la session existante
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       setSession(session)
       if (session?.user) {
-        const profile = await profilesApi.getCurrent()
-        setUser(profile)
+        await loadProfileFast(session.user.id)
       }
       setLoading(false)
     })
@@ -38,8 +51,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
       setSession(session)
       if (session?.user) {
-        const profile = await profilesApi.getCurrent()
-        setUser(profile)
+        await loadProfileFast(session.user.id)
       } else {
         setUser(null)
       }

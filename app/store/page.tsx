@@ -122,12 +122,13 @@ function WarehouseMap({ highlight, stock }: { highlight?: string; stock: Part[] 
 }
 
 // ─── DETAIL PANEL ────────────────────────────────────────────
-function DetailPanel({ part, stock, canEdit, onAdjust, onDeselect }: {
+function DetailPanel({ part, stock, canEdit, onAdjust, onDeselect, isMobile }: {
   part: Part | null; stock: Part[]; canEdit: boolean;
   onAdjust: () => void; onDeselect: () => void;
+  isMobile: boolean;
 }) {
   if (!part) return (
-    <div style={{ background: 'var(--s2)', border: '1px solid var(--b1)', borderRadius: 10, overflow: 'hidden', position: 'sticky', top: 20 }}>
+    <div style={{ background: 'var(--s2)', border: '1px solid var(--b1)', borderRadius: 10, overflow: 'hidden', position: isMobile ? 'static' : 'sticky', top: isMobile ? undefined : 20 }}>
       <div style={{ padding: 40, textAlign: 'center', color: 'var(--t2)' }}>
         <div style={{ fontSize: 32, marginBottom: 12 }}>📦</div>
         <div style={{ fontSize: 13 }}>Sélectionnez une pièce<br />pour voir son emplacement</div>
@@ -153,7 +154,7 @@ function DetailPanel({ part, stock, canEdit, onAdjust, onDeselect }: {
   const pct = Math.min(100, part.qty / Math.max(part.min_qty * 3, 1) * 100)
 
   return (
-    <div style={{ background: 'var(--s2)', border: '1px solid var(--b1)', borderRadius: 10, overflow: 'hidden', position: 'sticky', top: 20 }}>
+    <div style={{ background: 'var(--s2)', border: '1px solid var(--b1)', borderRadius: 10, overflow: 'hidden', position: isMobile ? 'static' : 'sticky', top: isMobile ? undefined : 20 }}>
       {/* Header */}
       <div style={{ padding: '16px 18px 12px', borderBottom: '1px solid var(--b0)' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
@@ -461,6 +462,7 @@ export default function StorePage() {
   const [showAdj, setShowAdj] = useState<Part | null>(null)
   const [showAdd, setShowAdd] = useState(false)
   const [toast, setToast] = useState<string | null>(null)
+  const [isMobile, setIsMobile] = useState(false)
 
   if (!user) return null
   const canEdit = user.role === 'admin' || user.role === 'chef'
@@ -484,6 +486,13 @@ export default function StorePage() {
   }, [])
 
   useEffect(() => { load() }, [load])
+  useEffect(() => {
+    const mql = window.matchMedia('(max-width: 768px)')
+    const apply = () => setIsMobile(mql.matches)
+    apply()
+    mql.addEventListener('change', apply)
+    return () => mql.removeEventListener('change', apply)
+  }, [])
 
   const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(null), 3000) }
 
@@ -603,7 +612,7 @@ export default function StorePage() {
       </div>
 
       {/* Layout principal */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: 16, alignItems: 'start' }}>
+      <div className="store-layout">
 
         {/* TABLE + HISTORIQUE */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -615,6 +624,7 @@ export default function StorePage() {
                     <th>📍 Emplacement</th>
                     <th>Référence</th>
                     <th>Désignation</th>
+                    <th>Machines</th>
                     <th>Fournisseur</th>
                     <th>Stock</th>
                     {canEdit && <th>P.U. HTVA</th>}
@@ -623,11 +633,13 @@ export default function StorePage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {loading && <tr><td colSpan={canEdit ? 8 : 6} style={{ textAlign: 'center', padding: 40, color: 'var(--t2)' }}>Chargement…</td></tr>}
-                  {!loading && filtered.length === 0 && <tr><td colSpan={canEdit ? 8 : 6}><div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '40px 20px', color: 'var(--t2)', opacity: .5 }}><span style={{ fontSize: 28 }}>🔍</span><span>Aucune pièce trouvée</span></div></td></tr>}
+                  {loading && <tr><td colSpan={canEdit ? 9 : 7} style={{ textAlign: 'center', padding: 40, color: 'var(--t2)' }}>Chargement…</td></tr>}
+                  {!loading && filtered.length === 0 && <tr><td colSpan={canEdit ? 9 : 7}><div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '40px 20px', color: 'var(--t2)', opacity: .5 }}><span style={{ fontSize: 28 }}>🔍</span><span>Aucune pièce trouvée</span></div></td></tr>}
                   {filtered.map(p => {
                     const low = p.qty <= p.min_qty
                     const sel = selected?.id === p.id
+                    const machines = (p.equipments ?? []).map(e => e.name)
+                    const machinesLabel = machines.length > 0 ? machines.join(' · ') : '—'
                     return (
                       <tr key={p.id}
                         onClick={() => setSelected(sel ? null : p)}
@@ -638,6 +650,9 @@ export default function StorePage() {
                           <div style={{ fontWeight: 600, maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</div>
                           <div style={{ fontSize: 10, color: 'var(--t2)' }}>{p.category}</div>
                           {low && <div style={{ fontSize: 9, color: 'var(--red)', fontFamily: 'var(--font-mono)' }}>⚠ CRITIQUE</div>}
+                        </td>
+                        <td style={{ fontSize: 11.5, color: 'var(--t2)', maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {machinesLabel}
                         </td>
                         <td>
                           <div style={{ fontSize: 12.5, fontWeight: 500, maxWidth: 130, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.supplier || '—'}</div>
@@ -697,13 +712,16 @@ export default function StorePage() {
         </div>
 
         {/* PANNEAU DÉTAIL */}
-        <DetailPanel
+        <div className="store-detail">
+          <DetailPanel
           part={selected}
           stock={stock}
           canEdit={canEdit}
           onAdjust={() => selected && setShowAdj(selected)}
           onDeselect={() => setSelected(null)}
+          isMobile={isMobile}
         />
+        </div>
       </div>
 
       {showAdj && <AdjustModal part={showAdj} canEdit={canEdit} onClose={() => setShowAdj(null)} onConfirm={handleAdjust} />}

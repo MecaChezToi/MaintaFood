@@ -14,6 +14,11 @@ type StatusFilter = 'all' | EqStatus
 const fmt = (d?: string | null) => d ? new Date(d).toLocaleDateString('fr-FR') : '—'
 const fmtDT = (d?: string | null) => d ? new Date(d).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—'
 const sizeLabel = (size?: number | null) => size ? `${(size / 1024).toFixed(1)} Ko` : '—'
+const addDays = (days: number) => {
+  const d = new Date()
+  d.setDate(d.getDate() + days)
+  return d.toISOString().split('T')[0]
+}
 
 const ZONE_CONFIG: Record<ZoneKey, { label: string; desc: string; color: string; x: number; y: number; w: number; h: number }> = {
   A: { label: 'Usinage', desc: 'Machines-outils et précision', color: '#e8643c', x: 6,  y: 8,  w: 38, h: 36 },
@@ -21,6 +26,8 @@ const ZONE_CONFIG: Record<ZoneKey, { label: string; desc: string; color: string;
   C: { label: 'Production Ligne A', desc: 'Process alimentaire', color: '#a855f7', x: 56, y: 42, w: 36, h: 32 },
   D: { label: 'Local technique', desc: 'Utilités et énergie', color: '#f59e0b', x: 56, y: 8,  w: 28, h: 24 },
 }
+
+const PREVENTIVE_TYPES = ['nettoyage', 'vidange', 'changement tapis', 'graissage', 'inspection'] as const
 
 function EquipmentDetailModal({
   equipment,
@@ -31,6 +38,7 @@ function EquipmentDetailModal({
   onLinkPart,
   onUnlinkPart,
   onUploadFiles,
+  onUpdateMaintenance,
 }: {
   equipment: Equipment
   canManage: boolean
@@ -40,6 +48,7 @@ function EquipmentDetailModal({
   onLinkPart: (equipment: Equipment, partId: string) => Promise<void>
   onUnlinkPart: (equipment: Equipment, partId: string) => Promise<void>
   onUploadFiles: (equipment: Equipment, files: File[]) => Promise<void>
+  onUpdateMaintenance: (equipment: Equipment, updates: Partial<Equipment>) => Promise<void>
 }) {
   const [parts, setParts] = useState<Part[]>([])
   const [allParts, setAllParts] = useState<Part[]>([])
@@ -50,6 +59,10 @@ function EquipmentDetailModal({
   const [linking, setLinking] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [savingMaintenance, setSavingMaintenance] = useState(false)
+  const [intervalDays, setIntervalDays] = useState<number>(Number(equipment.preventive_interval_days || 0))
+  const [tasksText, setTasksText] = useState<string>((equipment.preventive_tasks || []).join(', '))
+  const [nextPreventive, setNextPreventive] = useState<string>(equipment.next_preventive ? String(equipment.next_preventive) : '')
   const statusCfg = EQ_STATUS_CONFIG[equipment.status]
 
   const loadParts = async () => {
@@ -72,6 +85,7 @@ function EquipmentDetailModal({
       setEquipmentFiles(await filesApi.list(`equipments/${equipment.id}`))
     } catch {
       setEquipmentFiles([])
+      setError('Stockage Supabase indisponible. Créez le bucket Storage \"intervention-photos\" (non public) dans Supabase → Storage.')
     } finally {
       setLoadingFiles(false)
     }
@@ -108,9 +122,35 @@ function EquipmentDetailModal({
       await onUploadFiles(equipment, Array.from(files))
       await loadFiles()
     } catch (e: any) {
-      setError(e.message || 'Impossible d’envoyer le fichier.')
+      const msg = e.message || 'Impossible d’envoyer le fichier.'
+      setError(msg.includes('Bucket not found') ? 'Bucket introuvable. Créez le bucket \"intervention-photos\" dans Supabase → Storage.' : msg)
     } finally {
       setUploading(false)
+    }
+  }
+
+  const saveMaintenance = async () => {
+    if (!canManage) return
+    setSavingMaintenance(true)
+    setError(null)
+    try {
+      const parsedTasks = tasksText
+        .split(',')
+        .map(t => t.trim())
+        .filter(Boolean)
+
+      const days = Number(intervalDays || 0)
+      const next = nextPreventive || (days > 0 ? addDays(days) : null)
+
+      await onUpdateMaintenance(equipment, {
+        preventive_interval_days: days > 0 ? days : null,
+        preventive_tasks: parsedTasks.length > 0 ? parsedTasks : null,
+        next_preventive: next ? next : null,
+      })
+    } catch (e: any) {
+      setError(e.message || 'Impossible de sauvegarder la maintenance.')
+    } finally {
+      setSavingMaintenance(false)
     }
   }
 
@@ -288,6 +328,48 @@ function EquipmentDetailModal({
               )}
             </div>
           </div>
+
+          <div className="card">
+            <div style={{ padding: '14px 18px 12px', borderBottom: '1px solid var(--b0)', fontSize: 15, fontWeight: 700 }}>
+              Maintenance preventive
+            </div>
+            <div style={{ padding: 14, display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                  <label className="form-label">Dans (jours)</label>
+                  <input
+                    className="form-input"
+                    type="number"
+                    value={intervalDays}
+                    onChange={e => {
+                      const v = Math.max(0, parseInt(e.target.value) || 0)
+                      setIntervalDays(v)
+                      if (v > 0) setNextPreventive(addDays(v))
+                    }}
+                  />
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                  <label className="form-label">Date prochaine</label>
+                  <input className="form-input" type="date" value={nextPreventive} onChange={e => setNextPreventive(e.target.value)} />
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                <label className="form-label">Types (separes par virgules)</label>
+                <input className="form-input" value={tasksText} onChange={e => setTasksText(e.target.value)} placeholder="nettoyage, vidange, changement tapis" />
+              </div>
+
+              <div style={{ fontSize: 12, color: 'var(--t2)' }}>
+                Prochaine : <span style={{ color: 'var(--t1)', fontFamily: 'var(--font-mono)' }}>{nextPreventive ? fmt(nextPreventive) : '—'}</span>
+              </div>
+
+              {canManage && (
+                <button className="btn btn-primary" disabled={savingMaintenance} onClick={saveMaintenance}>
+                  {savingMaintenance ? 'Sauvegarde...' : '✓ Sauvegarder'}
+                </button>
+              )}
+            </div>
+          </div>
         </div>
 
         <div style={{ padding: '12px 20px', borderTop: '1px solid var(--b0)', display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
@@ -319,6 +401,8 @@ function AddEquipmentModal({
     manual_ref: '',
     food_safe: false,
     next_inspection: '',
+    preventive_days: 0,
+    preventive_tasks: [] as string[],
     files: [] as File[],
   })
   const [saving, setSaving] = useState(false)
@@ -329,6 +413,7 @@ function AddEquipmentModal({
     setSaving(true)
     try {
       const zone = ZONE_CONFIG[form.zone]
+      const preventiveDays = Number(form.preventive_days || 0)
       await onSave({
         name: form.name.trim(),
         serial: form.serial.trim(),
@@ -346,6 +431,9 @@ function AddEquipmentModal({
         pos_h: 8,
         last_inspection: new Date().toISOString().split('T')[0],
         next_inspection: form.next_inspection || null as never,
+        preventive_interval_days: preventiveDays > 0 ? preventiveDays : null as never,
+        preventive_tasks: form.preventive_tasks.length > 0 ? form.preventive_tasks : null as never,
+        next_preventive: preventiveDays > 0 ? addDays(preventiveDays) : null as never,
       }, form.files)
       onClose()
     } finally {
@@ -401,6 +489,51 @@ function AddEquipmentModal({
             <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
               <label className="form-label">Prochaine inspection</label>
               <input className="form-input" type="date" value={form.next_inspection} onChange={e => setField('next_inspection', e.target.value)} />
+            </div>
+          </div>
+
+          <div className="card" style={{ padding: 14, background: 'var(--s3)' }}>
+            <div className="form-label" style={{ marginBottom: 10 }}>Maintenance preventive</div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                <label className="form-label">Dans (jours)</label>
+                <input className="form-input" type="number" value={form.preventive_days} onChange={e => setField('preventive_days', Math.max(0, parseInt(e.target.value) || 0))} />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                <label className="form-label">Prochaine</label>
+                <input className="form-input" type="date" value={form.preventive_days > 0 ? addDays(form.preventive_days) : ''} readOnly />
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              {PREVENTIVE_TYPES.map(t => {
+                const active = form.preventive_tasks.includes(t)
+                return (
+                  <button
+                    key={t}
+                    type="button"
+                    className="btn btn-ghost btn-sm"
+                    onClick={() => setField('preventive_tasks', active ? form.preventive_tasks.filter(x => x !== t) : [...form.preventive_tasks, t])}
+                    style={active ? { borderColor: 'var(--acc)', color: 'var(--acc)', background: 'var(--acc-dim)' } : undefined}
+                  >
+                    {t}
+                  </button>
+                )
+              })}
+            </div>
+
+            <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 5 }}>
+              <label className="form-label">Autres (separes par virgules)</label>
+              <input
+                className="form-input"
+                placeholder="ex: controle courroies, graissage chaine"
+                onBlur={(e) => {
+                  const extras = e.target.value.split(',').map(v => v.trim()).filter(Boolean)
+                  const merged = [...new Set([...form.preventive_tasks, ...extras])]
+                  setField('preventive_tasks', merged)
+                  e.target.value = ''
+                }}
+              />
             </div>
           </div>
 
@@ -606,8 +739,8 @@ export default function PlanPage() {
     setError(null)
     const created = await equipmentsApi.create(payload)
     if (!created) throw new Error('La machine n’a pas pu etre creee.')
-    for (const file of files) {
-      await filesApi.upload(`equipments/${created.id}`, file)
+    if (files.length > 0) {
+      await Promise.all(files.map(file => filesApi.upload(`equipments/${created.id}`, file)))
     }
     await auditApi.log(user.id, 'Equipement cree', created.name, `Zone ${created.zone || '—'}`)
     await load()
@@ -650,10 +783,19 @@ export default function PlanPage() {
   }
 
   const handleUploadEquipmentFiles = async (equipment: Equipment, files: File[]) => {
-    for (const file of files) {
-      await filesApi.upload(`equipments/${equipment.id}`, file)
+    if (files.length > 0) {
+      await Promise.all(files.map(file => filesApi.upload(`equipments/${equipment.id}`, file)))
     }
     showToast('Fichier(s) machine ajoute(s)')
+  }
+
+  const handleUpdateMaintenance = async (equipment: Equipment, updates: Partial<Equipment>) => {
+    if (!canManage) return
+    await equipmentsApi.update(equipment.id, updates)
+    await auditApi.log(user.id, 'Maintenance preventive modifiee', equipment.name, `Prochaine: ${updates.next_preventive || equipment.next_preventive || '—'}`)
+    await load()
+    setSelected(prev => prev ? { ...prev, ...updates } : prev)
+    showToast('Maintenance sauvegardee')
   }
 
   return (
@@ -838,6 +980,7 @@ export default function PlanPage() {
           onLinkPart={handleLinkPart}
           onUnlinkPart={handleUnlinkPart}
           onUploadFiles={handleUploadEquipmentFiles}
+          onUpdateMaintenance={handleUpdateMaintenance}
         />
       )}
 

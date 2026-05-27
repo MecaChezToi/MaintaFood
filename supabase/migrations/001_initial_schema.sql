@@ -56,6 +56,9 @@ create table equipments (
   food_safe         boolean default false,
   last_inspection   date,
   next_inspection   date,
+  preventive_interval_days int,
+  preventive_tasks  text[],
+  next_preventive   date,
   -- Audit
   created_at        timestamptz default now(),
   updated_at        timestamptz default now()

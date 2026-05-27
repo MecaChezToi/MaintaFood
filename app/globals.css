@@ -70,6 +70,22 @@ input:-webkit-autofill:focus {
   .show-mobile { display: none !important; }
 }
 
+.store-layout {
+  display: grid;
+  grid-template-columns: 1fr 340px;
+  gap: 16px;
+  align-items: start;
+}
+
+@media (max-width: 768px) {
+  .store-layout {
+    grid-template-columns: 1fr;
+  }
+  .store-detail {
+    position: static;
+  }
+}
+
 /* Safe area for mobile */
 .safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
 

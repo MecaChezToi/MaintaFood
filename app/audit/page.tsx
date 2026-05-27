@@ -25,8 +25,10 @@ export default function AuditPage() {
     setLoadingDocs(true)
     try {
       setDocuments(await filesApi.list('audit'))
+      setError(null)
     } catch {
       setDocuments([])
+      setError('Stockage Supabase indisponible. Créez le bucket Storage \"intervention-photos\" (non public) dans Supabase → Storage.')
     } finally {
       setLoadingDocs(false)
     }
@@ -71,7 +73,8 @@ export default function AuditPage() {
       }
       await loadDocuments()
     } catch (e: any) {
-      setError(e.message || 'Impossible d’envoyer le document.')
+      const msg = e.message || 'Impossible d’envoyer le document.'
+      setError(msg.includes('Bucket not found') ? 'Bucket introuvable. Créez le bucket \"intervention-photos\" dans Supabase → Storage.' : msg)
     } finally {
       setUploading(false)
     }

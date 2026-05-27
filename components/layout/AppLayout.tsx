@@ -135,29 +135,29 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         background: '#0f1012', borderTop: '1px solid rgba(255,255,255,.08)',
         paddingBottom: 'env(safe-area-inset-bottom)',
       }} className="show-mobile">
-        <div style={{ display: 'flex' }}>
+        <div style={{ display: 'flex', minHeight: 64 }}>
           {mobileNav.map(item => {
             const isActive = pathname.startsWith(item.href)
             return (
               <Link key={item.href} href={item.href} style={{
                 flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center',
-                gap: 3, padding: '7px 4px', textDecoration: 'none',
-                color: isActive ? '#00c896' : '#7a8599', fontSize: 9,
+                gap: 4, padding: '10px 6px', textDecoration: 'none',
+                color: isActive ? '#00c896' : '#7a8599', fontSize: 10,
                 fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '.3px',
                 transition: 'color .12s',
               }}>
-                <span style={{ fontSize: 20, lineHeight: 1 }}>{item.icon}</span>
-                {item.label.slice(0, 6)}
+                <span style={{ fontSize: 26, lineHeight: 1 }}>{item.icon}</span>
+                <span style={{ lineHeight: 1 }}>{item.label.slice(0, 8)}</span>
               </Link>
             )
           })}
           <button onClick={signOut} style={{
             flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center',
-            gap: 3, padding: '7px 4px', border: 'none', background: 'none',
-            color: '#7a8599', fontSize: 9, fontFamily: 'var(--font-mono)',
+            gap: 4, padding: '10px 6px', border: 'none', background: 'none',
+            color: '#7a8599', fontSize: 10, fontFamily: 'var(--font-mono)',
             textTransform: 'uppercase', letterSpacing: '.3px', cursor: 'pointer',
           }}>
-            <span style={{ fontSize: 20, lineHeight: 1 }}>⇥</span>
+            <span style={{ fontSize: 26, lineHeight: 1 }}>⇥</span>
             Quitter
           </button>
         </div>

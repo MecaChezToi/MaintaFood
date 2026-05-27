@@ -38,6 +38,9 @@ export interface Equipment {
   food_safe: boolean
   last_inspection: string
   next_inspection: string
+  preventive_interval_days?: number | null
+  preventive_tasks?: string[] | null
+  next_preventive?: string | null
   created_at: string
   updated_at: string
   // Relations
@@ -63,6 +66,7 @@ export interface Part {
   updated_at: string
   // Relations
   equipment_ids?: string[]
+  equipments?: Array<{ id: string; name: string }>
 }
 
 // ─── INTERVENTION ────────────────────────────────────────────

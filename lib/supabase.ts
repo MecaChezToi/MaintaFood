@@ -140,11 +140,15 @@ export const equipmentsApi = {
 // ─── PIÈCES ──────────────────────────────────────────────────
 export const partsApi = {
   getAll: async (): Promise<Part[]> => {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('parts')
-      .select('*')
+      .select('*, equipment_parts(equipment_id, equipment:equipments(id,name))')
       .order('name')
-    return data ?? []
+    ensureNoError(error, 'Chargement pieces')
+    return (data ?? []).map((row: any) => ({
+      ...row,
+      equipments: (row.equipment_parts ?? []).map((ep: any) => ep.equipment).filter(Boolean),
+    }))
   },
 
   create: async (part: Partial<Part>): Promise<Part | null> => {
@@ -287,20 +291,16 @@ export const photosApi = {
 
     ensureNoError(error, 'Upload photo intervention')
 
-    const { data: urlData } = supabase.storage
-      .from(STORAGE_BUCKET)
-      .getPublicUrl(path)
-
     // Enregistrer en base
     const { error: insertError } = await supabase.from('intervention_photos').insert({
       intervention_id: interventionId,
-      url: urlData.publicUrl,
+      url: path,
       filename: file.name,
       uploaded_by: userId,
     })
     ensureNoError(insertError, 'Enregistrement photo intervention')
 
-    return urlData.publicUrl
+    return path
   },
 }
 
@@ -340,14 +340,7 @@ export const filesApi = {
       .upload(path, file, { contentType: file.type, upsert: false })
 
     ensureNoError(error, `Upload fichier ${path}`)
-
-    const { data, error: signedError } = await supabase.storage
-      .from(STORAGE_BUCKET)
-      .createSignedUrl(path, 60 * 60)
-
-    ensureNoError(signedError, `URL signee ${path}`)
-
-    return { path, url: data?.signedUrl || '' }
+    return { path, url: '' }
   },
 }
 

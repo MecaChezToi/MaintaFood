@@ -25,10 +25,9 @@ create policy "int_update" on public.interventions for update using (
   or public.current_user_role() in ('admin','chef')
 );
 
--- 1. S'assurer que le bucket Storage existe (si pas déjà fait)
--- Note : Si le bucket n'existe pas, créez-le d'abord dans Storage → New Bucket :
--- Nom : intervention-photos
--- Public : Non
+insert into storage.buckets (id, name, public)
+values ('intervention-photos', 'intervention-photos', false)
+on conflict (id) do nothing;
 
 -- ============================================================
 -- 2) STORAGE : autoriser les utilisateurs authentifiés à lister
@@ -47,6 +46,21 @@ drop policy if exists "Authenticated users can view photos" on storage.objects;
 create policy "Authenticated users can view photos"
   on storage.objects for select
   using (bucket_id = 'intervention-photos' and auth.role() = 'authenticated');
+
+alter table public.equipments
+  add column if not exists preventive_interval_days int,
+  add column if not exists preventive_tasks text[],
+  add column if not exists next_preventive date;
+
+insert into public.profiles (id, name, role, avatar, color)
+select
+  u.id,
+  coalesce(nullif(u.raw_user_meta_data->>'name',''), split_part(u.email, '@', 1)),
+  'technician'::public.user_role,
+  upper(left(coalesce(nullif(u.raw_user_meta_data->>'name',''), split_part(u.email, '@', 1)), 2)),
+  '#3c82e8'
+from auth.users u
+where not exists (select 1 from public.profiles p where p.id = u.id);
 
 -- 2. Vérification rapide des policies RLS (déjà présentes dans la migration initiale)
 -- (rien à faire, c'est déjà dans 001_initial_schema.sql)

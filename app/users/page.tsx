@@ -10,10 +10,15 @@ import { ROLE_CONFIG } from '@/types'
 const fmt = (d: string) => d ? new Date(d).toLocaleDateString('fr-FR') : '—'
 
 export default function UsersPage() {
-  const { user } = useAuth()
+  const { user, session } = useAuth()
   const [profiles, setProfiles] = useState<Profile[]>([])
   const [interventions, setInterventions] = useState<Intervention[]>([])
   const [loading, setLoading] = useState(true)
+  const [showCreate, setShowCreate] = useState(false)
+  const [creating, setCreating] = useState(false)
+  const [createError, setCreateError] = useState<string | null>(null)
+  const [toast, setToast] = useState<string | null>(null)
+  const [form, setForm] = useState({ name: '', email: '', password: '', role: 'technician' as Profile['role'] })
 
   useEffect(() => {
     Promise.all([profilesApi.getAll(), interventionsApi.getAll()])
@@ -21,11 +26,55 @@ export default function UsersPage() {
   }, [])
 
   if (!user) return null
+  const canCreate = user.role === 'admin'
+
+  const createUser = async () => {
+    setCreateError(null)
+    setCreating(true)
+    try {
+      const token = session?.access_token
+      if (!token) throw new Error('Session manquante, reconnectez-vous.')
+
+      const res = await fetch('/api/admin/users', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify(form),
+      })
+
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(data?.error || 'Impossible de créer l’utilisateur.')
+
+      const p = await profilesApi.getAll()
+      setProfiles(p)
+      setShowCreate(false)
+      setForm({ name: '', email: '', password: '', role: 'technician' })
+      setToast('Utilisateur créé')
+      setTimeout(() => setToast(null), 2500)
+    } catch (e: any) {
+      setCreateError(e.message || 'Impossible de créer l’utilisateur.')
+    } finally {
+      setCreating(false)
+    }
+  }
 
   return (
     <AppLayout>
       <div className="page-title">Utilisateurs</div>
-      <div className="page-sub">{profiles.length} comptes · {profiles.filter(p => p.active).length} actifs</div>
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, marginBottom: 16 }}>
+        <div className="page-sub">{profiles.length} comptes · {profiles.filter(p => p.active).length} actifs</div>
+        {canCreate && (
+          <button className="btn btn-primary" onClick={() => setShowCreate(true)}>+ Ajouter un utilisateur</button>
+        )}
+      </div>
+
+      {toast && (
+        <div style={{ position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)', zIndex: 999, background: 'var(--acc)', color: '#000', padding: '10px 20px', borderRadius: 8, fontWeight: 600, fontSize: 13, boxShadow: '0 8px 24px rgba(0,0,0,.4)' }}>
+          ✓ {toast}
+        </div>
+      )}
 
       <div className="grid-2">
         {profiles.map(p => {
@@ -78,6 +127,57 @@ export default function UsersPage() {
 
       {!loading && profiles.length === 0 && (
         <div className="empty-state"><span style={{ fontSize: 32 }}>👤</span><span>Aucun utilisateur trouvé</span></div>
+      )}
+
+      {showCreate && (
+        <div className="modal-overlay" onClick={e => e.target === e.currentTarget && setShowCreate(false)}>
+          <div className="modal-box" style={{ maxWidth: 560 }}>
+            <div style={{ padding: '18px 20px 14px', borderBottom: '1px solid var(--b0)', display: 'flex', justifyContent: 'space-between', gap: 10 }}>
+              <div style={{ fontSize: 17, fontWeight: 700 }}>Ajouter un utilisateur</div>
+              <button className="btn btn-ghost btn-sm" onClick={() => setShowCreate(false)}>Fermer</button>
+            </div>
+
+            <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                <label className="form-label">Nom *</label>
+                <input className="form-input" value={form.name} onChange={e => setForm(prev => ({ ...prev, name: e.target.value }))} placeholder="ex: Jean Dupont" />
+              </div>
+
+              <div className="grid-2">
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                  <label className="form-label">Email *</label>
+                  <input className="form-input" value={form.email} onChange={e => setForm(prev => ({ ...prev, email: e.target.value }))} placeholder="ex: jean@entreprise.com" />
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                  <label className="form-label">Mot de passe *</label>
+                  <input className="form-input" type="password" value={form.password} onChange={e => setForm(prev => ({ ...prev, password: e.target.value }))} placeholder="min 6 caractères" />
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                <label className="form-label">Rôle</label>
+                <select className="form-select" value={form.role} onChange={e => setForm(prev => ({ ...prev, role: e.target.value as any }))}>
+                  <option value="technician">Technicien</option>
+                  <option value="chef">Chef</option>
+                  <option value="admin">Admin</option>
+                </select>
+              </div>
+
+              {createError && (
+                <div style={{ padding: '10px 12px', background: 'rgba(255,71,87,.08)', border: '1px solid rgba(255,71,87,.25)', borderRadius: 8, fontSize: 12.5, color: '#ff4757' }}>
+                  {createError}
+                </div>
+              )}
+            </div>
+
+            <div style={{ padding: '12px 20px', borderTop: '1px solid var(--b0)', display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+              <button className="btn btn-ghost" onClick={() => setShowCreate(false)}>Annuler</button>
+              <button className="btn btn-primary" disabled={creating || !form.name.trim() || !form.email.trim() || form.password.length < 6} onClick={createUser}>
+                {creating ? 'Création...' : 'Créer'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </AppLayout>
   )
