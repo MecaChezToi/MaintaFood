@@ -2,23 +2,33 @@
 
 import { useEffect, useState } from 'react'
 import AppLayout from '@/components/layout/AppLayout'
+import { useAuth } from '@/components/layout/AuthProvider'
 import { siteConfigApi } from '@/lib/supabase'
 import type { SiteConfig } from '@/types'
 
 export default function SettingsPage() {
+  const { user } = useAuth()
   const [config, setConfig] = useState<SiteConfig | null>(null)
   const [saved, setSaved] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const isAdmin = user?.role === 'admin'
 
   useEffect(() => { siteConfigApi.get().then(setConfig) }, [])
 
   const save = async () => {
-    if (!config) return
+    if (!config || !isAdmin) return
     setSaving(true)
-    await siteConfigApi.update({ name: config.name, address: config.address, siret: config.siret, certifications: config.certifications })
-    setSaving(false)
-    setSaved(true)
-    setTimeout(() => setSaved(false), 3000)
+    setError(null)
+    try {
+      await siteConfigApi.update({ name: config.name, address: config.address, siret: config.siret, certifications: config.certifications })
+      setSaved(true)
+      setTimeout(() => setSaved(false), 3000)
+    } catch (e: any) {
+      setError(e.message || 'Impossible de sauvegarder les parametres.')
+    } finally {
+      setSaving(false)
+    }
   }
 
   const s = (k: keyof SiteConfig, v: string) => setConfig(c => c ? { ...c, [k]: v } : c)
@@ -28,8 +38,8 @@ export default function SettingsPage() {
       <div className="page-title">Paramètres</div>
       <div className="page-sub">Configuration de la plateforme FixOps</div>
 
-      <div className="grid-2">
-        <div className="card">
+      <div className="grid-2" style={!isAdmin ? { gridTemplateColumns: '1fr' } : undefined}>
+        {isAdmin && <div className="card">
           <div style={{ padding: '14px 18px 12px', borderBottom: '1px solid rgba(255,255,255,.04)' }}>
             <div style={{ fontSize: 15, fontWeight: 700 }}>⚙️ Informations du site</div>
           </div>
@@ -52,12 +62,13 @@ export default function SettingsPage() {
                 <input className="form-input" value={config.certifications || ''} onChange={e => s('certifications', e.target.value)} placeholder="ex: IFS Food v8 · BRC · ISO 22000" />
               </div>
               {saved && <div style={{ padding: '8px 12px', background: 'rgba(0,200,150,.08)', border: '1px solid rgba(0,200,150,.2)', borderRadius: 6, fontSize: 13, color: '#00c896' }}>✅ Sauvegardé !</div>}
+              {error && <div style={{ padding: '8px 12px', background: 'rgba(255,71,87,.08)', border: '1px solid rgba(255,71,87,.25)', borderRadius: 6, fontSize: 13, color: '#ff4757' }}>{error}</div>}
               <button onClick={save} disabled={saving} style={{ background: '#00c896', color: '#000', border: 'none', borderRadius: 6, padding: '10px 16px', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'var(--font-outfit)' }}>
                 {saving ? 'Sauvegarde...' : '✓ Sauvegarder'}
               </button>
             </> : <div style={{ color: 'var(--t2)', fontSize: 13 }}>Chargement…</div>}
           </div>
-        </div>
+        </div>}
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           <div className="card">

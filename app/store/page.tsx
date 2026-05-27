@@ -8,6 +8,7 @@ import type { Part } from '@/types'
 
 const today = () => new Date().toISOString().split('T')[0]
 const fmtDate = (d: string) => new Date(d).toLocaleDateString('fr-FR')
+const VAT_RATE = 0.21
 
 // ─── ZONE CONFIG ──────────────────────────────────────────────
 const ZONES: Record<string, { color: string; label: string; desc: string }> = {
@@ -212,9 +213,11 @@ function DetailPanel({ part, stock, canEdit, onAdjust, onDeselect }: {
             📞 {part.supplier_contact}
           </a>
         )}
-        {canEdit && part.price && (
+        {canEdit && typeof part.price === 'number' && part.price > 0 && (
           <div style={{ marginTop: 10, fontSize: 12, color: 'var(--t2)' }}>
-            Prix unitaire : <strong style={{ color: 'var(--t1)' }}>{Number(part.price).toFixed(2)} €</strong>
+            Prix HTVA : <strong style={{ color: 'var(--t1)' }}>{Number(part.price).toFixed(2)} €</strong>
+            <br />
+            Prix TVAC : <strong style={{ color: 'var(--t1)' }}>{(Number(part.price) * (1 + VAT_RATE)).toFixed(2)} €</strong>
           </div>
         )}
       </div>
@@ -407,8 +410,11 @@ function AddPartModal({ onClose, onSave }: { onClose: () => void; onSave: (part:
               </select>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-              <label className="form-label">Prix unitaire (€)</label>
+              <label className="form-label">Prix unitaire HTVA (€)</label>
               <input className="form-input" type="number" step="0.01" value={f.price} onChange={e => s('price', parseFloat(e.target.value) || 0)} />
+              <div style={{ fontSize: 11, color: 'var(--t2)' }}>
+                TVAC estime : {(Number(f.price || 0) * (1 + VAT_RATE)).toFixed(2)} €
+              </div>
             </div>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
@@ -611,13 +617,14 @@ export default function StorePage() {
                     <th>Désignation</th>
                     <th>Fournisseur</th>
                     <th>Stock</th>
-                    {canEdit && <th>P.U.</th>}
+                    {canEdit && <th>P.U. HTVA</th>}
+                    {canEdit && <th>P.U. TVAC</th>}
                     <th></th>
                   </tr>
                 </thead>
                 <tbody>
-                  {loading && <tr><td colSpan={7} style={{ textAlign: 'center', padding: 40, color: 'var(--t2)' }}>Chargement…</td></tr>}
-                  {!loading && filtered.length === 0 && <tr><td colSpan={7}><div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '40px 20px', color: 'var(--t2)', opacity: .5 }}><span style={{ fontSize: 28 }}>🔍</span><span>Aucune pièce trouvée</span></div></td></tr>}
+                  {loading && <tr><td colSpan={canEdit ? 8 : 6} style={{ textAlign: 'center', padding: 40, color: 'var(--t2)' }}>Chargement…</td></tr>}
+                  {!loading && filtered.length === 0 && <tr><td colSpan={canEdit ? 8 : 6}><div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '40px 20px', color: 'var(--t2)', opacity: .5 }}><span style={{ fontSize: 28 }}>🔍</span><span>Aucune pièce trouvée</span></div></td></tr>}
                   {filtered.map(p => {
                     const low = p.qty <= p.min_qty
                     const sel = selected?.id === p.id
@@ -643,7 +650,8 @@ export default function StorePage() {
                           </div>
                           <StockBar qty={p.qty} minQty={p.min_qty} />
                         </td>
-                        {canEdit && <td style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--t2)' }} onClick={e => e.stopPropagation()}>{p.price ? `${Number(p.price).toFixed(2)}€` : '—'}</td>}
+                        {canEdit && <td style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--t2)' }} onClick={e => e.stopPropagation()}>{typeof p.price === 'number' && p.price > 0 ? `${Number(p.price).toFixed(2)} €` : '—'}</td>}
+                        {canEdit && <td style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--t2)' }} onClick={e => e.stopPropagation()}>{typeof p.price === 'number' && p.price > 0 ? `${(Number(p.price) * (1 + VAT_RATE)).toFixed(2)} €` : '—'}</td>}
                         <td onClick={e => e.stopPropagation()}>
                           <div style={{ display: 'flex', gap: 5 }}>
                             <button onClick={() => { setSelected(p); }} className="btn btn-ghost btn-xs">📍</button>

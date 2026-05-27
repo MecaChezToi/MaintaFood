@@ -3,8 +3,8 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useAuth } from '@/components/layout/AuthProvider'
 import AppLayout from '@/components/layout/AppLayout'
-import { interventionsApi, equipmentsApi, partsApi, auditApi, photosApi } from '@/lib/supabase'
-import type { Intervention, Equipment, Part } from '@/types'
+import { interventionsApi, equipmentsApi, auditApi, photosApi, profilesApi } from '@/lib/supabase'
+import type { Intervention, Equipment, Profile } from '@/types'
 import { STATUS_CONFIG, PRIORITY_CONFIG, EQ_STATUS_CONFIG } from '@/types'
 
 const fmt   = (d: string) => d ? new Date(d).toLocaleDateString('fr-FR') : '—'
@@ -216,7 +216,7 @@ function ReportForm({ interv, equipment, user, onSave, onClose }: any) {
 }
 
 // ─── NOUVELLE INTERVENTION ───────────────────────────────────
-function NewIntModal({ equipments, user, onClose, onSave }: any) {
+function NewIntModal({ equipments, technicians, user, onClose, onSave, error }: any) {
   const [form, setForm] = useState<{
     title: string;
     equipment_id: string;
@@ -242,9 +242,8 @@ function NewIntModal({ equipments, user, onClose, onSave }: any) {
     if (!form.title || !form.equipment_id) return
     setSaving(true)
     try {
-      const created = await interventionsApi.create({ ...form, created_by: user.id })
+      await onSave({ ...form, created_by: user.id })
       await auditApi.log(user.id, 'Intervention créée', form.title, `Équipement: ${eq?.name}`)
-      onSave()
       onClose()
     } finally { setSaving(false) }
   }
@@ -276,6 +275,7 @@ function NewIntModal({ equipments, user, onClose, onSave }: any) {
                 <label className="form-label">Technicien</label>
                 <select className="form-input" value={form.technician_id} onChange={e => s('technician_id', e.target.value)}>
                   <option value="">Non assigné</option>
+                  {technicians.map((tech: Profile) => <option key={tech.id} value={tech.id}>{tech.name}</option>)}
                 </select>
               </div>
             )}
@@ -301,6 +301,7 @@ function NewIntModal({ equipments, user, onClose, onSave }: any) {
             ))}
           </div>
           {eq?.food_safe && <div style={{ padding: '8px 12px', background: 'rgba(0,200,150,.06)', border: '1px solid rgba(0,200,150,.2)', borderRadius: 6, fontSize: 12, color: '#00c896' }}>🛡️ Équipement en zone alimentaire — rapport hygiène obligatoire</div>}
+          {error && <div style={{ padding: '10px 12px', background: 'rgba(255,71,87,.08)', border: '1px solid rgba(255,71,87,.25)', borderRadius: 8, fontSize: 12.5, color: '#ff4757' }}>{error}</div>}
         </div>
         <div style={{ padding: '12px 20px', borderTop: '1px solid rgba(255,255,255,.04)', display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
           <button onClick={onClose} style={iS}>Annuler</button>
@@ -318,16 +319,20 @@ export default function InterventionsPage() {
   const { user } = useAuth()
   const [interventions, setInterventions] = useState<Intervention[]>([])
   const [equipments, setEquipments] = useState<Equipment[]>([])
+  const [technicians, setTechnicians] = useState<Profile[]>([])
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState('all')
   const [showNew, setShowNew] = useState(false)
   const [selected, setSelected] = useState<Intervention | null>(null)
   const [showReport, setShowReport] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [toast, setToast] = useState<string | null>(null)
 
   const load = useCallback(async () => {
-    const [ints, eqs] = await Promise.all([interventionsApi.getAll(), equipmentsApi.getAll()])
+    const [ints, eqs, profiles] = await Promise.all([interventionsApi.getAll(), equipmentsApi.getAll(), profilesApi.getAll()])
     setInterventions(ints)
     setEquipments(eqs)
+    setTechnicians(profiles.filter(profile => profile.role === 'technician'))
     setLoading(false)
   }, [])
 
@@ -336,8 +341,13 @@ export default function InterventionsPage() {
   if (!user) return null
 
   const isTech = user.role === 'technician'
-  const list = isTech ? interventions.filter(i => i.technician_id === user.id) : interventions
+  const list = isTech ? interventions.filter(i => i.technician_id === user.id || i.created_by === user.id) : interventions
   const filtered = filter === 'all' ? list : list.filter(i => i.status === filter)
+
+  const showToast = (message: string) => {
+    setToast(message)
+    setTimeout(() => setToast(null), 3000)
+  }
 
   const updateStatus = async (interv: Intervention, status: 'a_faire' | 'en_cours' | 'termine' | 'valide') => {
     await interventionsApi.updateStatus(interv.id, status)
@@ -345,8 +355,26 @@ export default function InterventionsPage() {
     load()
   }
 
+  const createIntervention = async (payload: any) => {
+    setError(null)
+    try {
+      await interventionsApi.create(payload)
+      await load()
+      showToast('Intervention créée')
+      setShowNew(false)
+    } catch (e: any) {
+      setError(e.message || 'Impossible de créer l’intervention.')
+      throw e
+    }
+  }
+
   return (
     <AppLayout>
+      {toast && (
+        <div style={{ position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)', zIndex: 999, background: 'var(--acc)', color: '#000', padding: '10px 20px', borderRadius: 8, fontWeight: 600, fontSize: 13, boxShadow: '0 8px 24px rgba(0,0,0,.4)' }}>
+          ✓ {toast}
+        </div>
+      )}
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 18 }}>
         <div>
           <div className="page-title">{isTech ? 'Mes ordres de travail' : 'Interventions'}</div>
@@ -483,7 +511,7 @@ export default function InterventionsPage() {
         </div>
       )}
 
-      {showNew && <NewIntModal equipments={equipments} user={user} onClose={() => setShowNew(false)} onSave={() => { setShowNew(false); load() }} />}
+      {showNew && <NewIntModal equipments={equipments} technicians={technicians} user={user} error={error} onClose={() => { setShowNew(false); setError(null) }} onSave={createIntervention} />}
       {selected && showReport && <ReportForm interv={selected} equipment={equipments.find(e => e.id === selected.equipment_id)} user={user} onSave={() => { setShowReport(false); load() }} onClose={() => setShowReport(false)} />}
     </AppLayout>
   )

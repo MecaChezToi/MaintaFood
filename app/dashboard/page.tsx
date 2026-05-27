@@ -3,8 +3,8 @@
 import { useEffect, useState } from 'react'
 import { useAuth } from '@/components/layout/AuthProvider'
 import AppLayout from '@/components/layout/AppLayout'
-import { equipmentsApi, interventionsApi, partsApi } from '@/lib/supabase'
-import type { Equipment, Intervention, Part } from '@/types'
+import { equipmentsApi, interventionsApi, partsApi, siteConfigApi } from '@/lib/supabase'
+import type { Equipment, Intervention, Part, SiteConfig } from '@/types'
 import { STATUS_CONFIG, PRIORITY_CONFIG } from '@/types'
 
 const fmt = (d: string) => d ? new Date(d).toLocaleDateString('fr-FR', { day:'2-digit', month:'2-digit', year:'numeric' }) : '—'
@@ -15,6 +15,7 @@ export default function DashboardPage() {
   const [equipments, setEquipments] = useState<Equipment[]>([])
   const [interventions, setInterventions] = useState<Intervention[]>([])
   const [stock, setStock] = useState<Part[]>([])
+  const [siteConfig, setSiteConfig] = useState<SiteConfig | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -22,10 +23,12 @@ export default function DashboardPage() {
       equipmentsApi.getAll(),
       interventionsApi.getAll(),
       partsApi.getAll(),
-    ]).then(([eq, int, st]) => {
+      siteConfigApi.get(),
+    ]).then(([eq, int, st, cfg]) => {
       setEquipments(eq)
       setInterventions(int)
       setStock(st)
+      setSiteConfig(cfg)
       setLoading(false)
     })
   }, [])
@@ -161,13 +164,13 @@ export default function DashboardPage() {
             <div style={{ padding: '14px 18px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, color: '#00c896' }}>
                 <span>🛡️</span>
-                <span style={{ fontWeight: 600, fontSize: 13 }}>Certifications actives</span>
+                <span style={{ fontWeight: 600, fontSize: 13 }}>{siteConfig?.name || 'Certifications actives'}</span>
               </div>
               <div style={{ fontSize: 12.5, color: 'var(--t2)', lineHeight: 1.6 }}>
-                IFS Food v8 · BRC · ISO 22000 · HACCP
+                {siteConfig?.certifications || 'IFS Food v8 · BRC · ISO 22000 · HACCP'}
               </div>
               <div style={{ fontSize: 11, color: 'var(--t3)', marginTop: 6, fontFamily: 'var(--font-mono)' }}>
-                Journal d'audit disponible pour les auditeurs
+                {siteConfig?.siret || 'Journal d’audit disponible pour les auditeurs'}
               </div>
             </div>
           </div>
