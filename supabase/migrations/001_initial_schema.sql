@@ -238,13 +238,17 @@ create policy "eqparts_write"  on equipment_parts for all using (current_user_ro
 
 -- INTERVENTIONS : technicien voit les siennes, chef/admin voient tout
 create policy "int_select" on interventions for select using (
-  technician_id = auth.uid() or current_user_role() in ('admin','chef')
+  technician_id = auth.uid()
+  or created_by = auth.uid()
+  or current_user_role() in ('admin','chef')
 );
 create policy "int_insert" on interventions for insert with check (
   auth.uid() is not null
 );
 create policy "int_update" on interventions for update using (
-  technician_id = auth.uid() or current_user_role() in ('admin','chef')
+  technician_id = auth.uid()
+  or created_by = auth.uid()
+  or current_user_role() in ('admin','chef')
 );
 
 -- PHOTOS : lire si on peut lire l'intervention
