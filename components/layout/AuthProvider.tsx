@@ -23,7 +23,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<any>(null)
   const [loading, setLoading] = useState(true)
 
-  const loadProfileFast = async (userId: string) => {
+  const loadProfileFast = async (userId: string, accessToken?: string | null) => {
     const cached = sessionStorage.getItem(`profile:${userId}`)
     if (cached) {
       try { setUser(JSON.parse(cached)) } catch {}
@@ -33,6 +33,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       sessionStorage.setItem(`profile:${userId}`, JSON.stringify(profile))
       setUser(profile)
     } else {
+      if (accessToken) {
+        try {
+          const res = await fetch('/api/profile/ensure', {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${accessToken}` },
+          })
+          if (res.ok) {
+            const ensured = await res.json()
+            if (ensured?.id) {
+              sessionStorage.setItem(`profile:${userId}`, JSON.stringify(ensured))
+              setUser(ensured)
+              return
+            }
+          }
+        } catch {}
+      }
       setUser(null)
     }
   }
@@ -42,7 +58,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       setSession(session)
       if (session?.user) {
-        await loadProfileFast(session.user.id)
+        await loadProfileFast(session.user.id, session.access_token)
       }
       setLoading(false)
     })
@@ -51,7 +67,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
       setSession(session)
       if (session?.user) {
-        await loadProfileFast(session.user.id)
+        await loadProfileFast(session.user.id, session.access_token)
       } else {
         setUser(null)
       }

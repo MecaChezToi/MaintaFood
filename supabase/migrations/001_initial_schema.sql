@@ -224,6 +224,28 @@ create policy "profiles_update" on profiles for update using (
   id = auth.uid() or current_user_role() = 'admin'
 );
 
+create or replace function public.handle_new_user()
+returns trigger as $$
+begin
+  insert into public.profiles (id, name, role, avatar, color, active)
+  values (
+    new.id,
+    coalesce(nullif(new.raw_user_meta_data->>'name',''), split_part(new.email, '@', 1), 'Utilisateur'),
+    'technician',
+    upper(left(coalesce(nullif(new.raw_user_meta_data->>'name',''), split_part(new.email, '@', 1), 'U'), 2)),
+    '#3c82e8',
+    true
+  )
+  on conflict (id) do nothing;
+  return new;
+end;
+$$ language plpgsql security definer;
+
+drop trigger if exists on_auth_user_created on auth.users;
+create trigger on_auth_user_created
+  after insert on auth.users
+  for each row execute procedure public.handle_new_user();
+
 -- ÉQUIPEMENTS : tout le monde peut lire, admin/chef peuvent écrire
 create policy "eq_select" on equipments for select using (true);
 create policy "eq_insert" on equipments for insert with check (current_user_role() in ('admin','chef'));

@@ -62,6 +62,28 @@ select
 from auth.users u
 where not exists (select 1 from public.profiles p where p.id = u.id);
 
+create or replace function public.handle_new_user()
+returns trigger as $$
+begin
+  insert into public.profiles (id, name, role, avatar, color, active)
+  values (
+    new.id,
+    coalesce(nullif(new.raw_user_meta_data->>'name',''), split_part(new.email, '@', 1), 'Utilisateur'),
+    'technician',
+    upper(left(coalesce(nullif(new.raw_user_meta_data->>'name',''), split_part(new.email, '@', 1), 'U'), 2)),
+    '#3c82e8',
+    true
+  )
+  on conflict (id) do nothing;
+  return new;
+end;
+$$ language plpgsql security definer;
+
+drop trigger if exists on_auth_user_created on auth.users;
+create trigger on_auth_user_created
+  after insert on auth.users
+  for each row execute procedure public.handle_new_user();
+
 -- 2. Vérification rapide des policies RLS (déjà présentes dans la migration initiale)
 -- (rien à faire, c'est déjà dans 001_initial_schema.sql)
 

@@ -46,9 +46,24 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     if (!loading && !user) router.replace('/auth')
   }, [user, loading, router])
 
-  if (loading || !user) return (
+  if (loading) return (
     <div style={{ minHeight: '100dvh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#080909' }}>
       <div style={{ color: '#00c896', fontSize: 13, fontFamily: 'var(--font-mono)' }}>Chargement…</div>
+    </div>
+  )
+
+  if (!user) return (
+    <div style={{ minHeight: '100dvh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#080909', padding: 20 }}>
+      <div style={{ width: '100%', maxWidth: 420, background: '#0f1012', border: '1px solid rgba(255,255,255,.08)', borderRadius: 14, padding: 18 }}>
+        <div style={{ fontSize: 16, fontWeight: 800, marginBottom: 6 }}>Session détectée, profil manquant</div>
+        <div style={{ fontSize: 12.5, color: 'var(--t2)', lineHeight: 1.6, marginBottom: 14 }}>
+          L’application n’arrive pas à charger votre profil. Cliquez sur “Reconnexion”.
+        </div>
+        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+          <button className="btn btn-ghost" onClick={() => router.replace('/auth')}>Reconnexion</button>
+          <button className="btn btn-primary" onClick={signOut}>Déconnexion</button>
+        </div>
+      </div>
     </div>
   )
 
