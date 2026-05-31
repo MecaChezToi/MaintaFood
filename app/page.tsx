@@ -3,6 +3,7 @@
 import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/components/layout/AuthProvider'
+import LandingPage from '@/LandingPage'
 
 export default function HomePage() {
   const { user, loading } = useAuth()
@@ -10,9 +11,11 @@ export default function HomePage() {
 
   useEffect(() => {
     if (!loading) {
-      router.replace(user ? '/dashboard' : '/auth')
+      if (user) router.replace('/dashboard')
     }
   }, [user, loading, router])
+
+  if (!loading && !user) return <LandingPage />
 
   return (
     <div style={{

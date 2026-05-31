@@ -164,7 +164,6 @@ export const ROLE_CONFIG: Record<UserRole, { label: string; color: string }> = {
   chef:       { label: 'Chef technique', color: '#a855f7' },
   technician: { label: 'Technicien',     color: '#3c82e8' },
 }
-}
 
 export const STATUS_CONFIG: Record<IntStatus, { label: string; color: string; bg: string }> = {
   a_faire:  { label: 'À faire',  color: '#f59e0b', bg: 'rgba(245,158,11,.12)' },
