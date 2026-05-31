@@ -26,105 +26,78 @@ export default function AuthPage() {
   }
 
   return (
-    <div style={{
-      minHeight: '100dvh', display: 'flex', alignItems: 'center',
-      justifyContent: 'center', background: '#080909', padding: 16,
-      fontFamily: 'var(--font-outfit)',
-    }}>
-      {/* Fond radial */}
-      <div style={{
-        position: 'fixed', inset: 0, pointerEvents: 'none',
-        background: 'radial-gradient(ellipse 80% 60% at 20% 30%, rgba(0,200,150,.06) 0%, transparent 60%)',
-      }}/>
-
-      <div style={{
-        background: '#0f1012', border: '1px solid rgba(255,255,255,.08)',
-        borderRadius: 14, padding: 32, width: '100%', maxWidth: 400,
-        position: 'relative', zIndex: 1,
-      }}>
-        {/* Logo */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
-          <div style={{
-            width: 38, height: 38, background: 'rgba(0,200,150,.12)',
-            border: '1px solid rgba(0,200,150,.2)', borderRadius: 9,
-            display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22,
-          }}>⚙️</div>
-          <div>
-            <div style={{ fontSize: 22, fontWeight: 800, color: '#00c896', letterSpacing: '-.3px' }}>FixOps</div>
-          </div>
-        </div>
-        <div style={{ fontSize: 12.5, color: '#7a8599', marginBottom: 28 }}>
-          GMAO · Industrie Alimentaire · Plateforme sécurisée
-        </div>
-
-        {/* Formulaire */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-            <label style={{ fontSize: 10, fontWeight: 600, color: '#7a8599', textTransform: 'uppercase', letterSpacing: '.6px', fontFamily: 'var(--font-mono)' }}>
-              Email
-            </label>
-            <input
-              type="email"
-              placeholder="votre@email.fr"
-              value={email}
-              onChange={e => setEmail(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && handleLogin()}
-              style={{
-                background: '#1e2023', border: '1px solid rgba(255,255,255,.08)',
-                borderRadius: 6, color: '#e4e8f0', fontFamily: 'var(--font-outfit)',
-                fontSize: 13, padding: '10px 12px', outline: 'none', width: '100%',
-              }}
-            />
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-            <label style={{ fontSize: 10, fontWeight: 600, color: '#7a8599', textTransform: 'uppercase', letterSpacing: '.6px', fontFamily: 'var(--font-mono)' }}>
-              Mot de passe
-            </label>
-            <input
-              type="password"
-              placeholder="••••••••"
-              value={password}
-              onChange={e => setPassword(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && handleLogin()}
-              style={{
-                background: '#1e2023', border: '1px solid rgba(255,255,255,.08)',
-                borderRadius: 6, color: '#e4e8f0', fontFamily: 'var(--font-outfit)',
-                fontSize: 13, padding: '10px 12px', outline: 'none', width: '100%',
-              }}
-            />
-          </div>
-
-          {error && (
+    <div className="auth">
+      <div className="auth-left">
+        <div style={{ position: 'relative', zIndex: 1, maxWidth: 560 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 24 }}>
             <div style={{
-              background: 'rgba(255,71,87,.08)', border: '1px solid rgba(255,71,87,.25)',
-              borderRadius: 6, padding: '9px 12px', fontSize: 12.5, color: '#ff4757',
-            }}>
-              ⚠️ {error}
+              width: 48, height: 48, borderRadius: 14,
+              background: 'rgba(0,200,150,.14)', border: '1px solid rgba(0,200,150,.25)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 26,
+            }}>⚙️</div>
+            <div>
+              <div style={{ fontSize: 34, fontWeight: 800, color: 'var(--acc)', letterSpacing: '-.5px' }}>FixOps</div>
+              <div style={{ fontSize: 12, color: 'var(--t2)', marginTop: 2 }}>GMAO · Industrie Alimentaire</div>
             </div>
-          )}
-
-          <button
-            onClick={handleLogin}
-            disabled={loading}
-            style={{
-              background: loading ? '#7a8599' : '#00c896', color: '#000',
-              border: 'none', borderRadius: 6, padding: '11px 20px',
-              fontSize: 14, fontWeight: 600, cursor: loading ? 'wait' : 'pointer',
-              fontFamily: 'var(--font-outfit)', width: '100%', marginTop: 4,
-              transition: 'all .15s',
-            }}
-          >
-            {loading ? 'Connexion...' : 'Se connecter →'}
-          </button>
+          </div>
+          <p style={{ color: '#9ca3af', maxWidth: 520, fontSize: 15, lineHeight: 1.7, marginBottom: 26 }}>
+            Réduisez les arrêts de ligne, simplifiez vos audits HACCP et centralisez votre maintenance sur une seule plateforme moderne.
+          </p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {['Conformité IFS Food v8 · BRC · ISO 22000', 'Rapports signés et horodatés', 'KPIs de maintenance en temps réel', 'Traçabilité complète pour les audits'].map(t => (
+              <div key={t} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderRadius: 10, border: '1px solid rgba(255,255,255,.06)', background: 'rgba(255,255,255,.02)' }}>
+                <span style={{ width: 18, height: 18, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', borderRadius: 6, background: 'rgba(0,200,150,.12)', color: 'var(--acc)', fontWeight: 800 }}>✓</span>
+                <span style={{ fontSize: 13, color: '#cbd5e1' }}>{t}</span>
+              </div>
+            ))}
+          </div>
         </div>
+      </div>
 
-        {/* Info sécurité */}
-        <div style={{
-          marginTop: 24, padding: '10px 12px', background: 'rgba(0,200,150,.04)',
-          border: '1px solid rgba(0,200,150,.12)', borderRadius: 6,
-          fontSize: 11, color: '#7a8599', lineHeight: 1.6,
-        }}>
-          🔒 Connexion sécurisée. Vos données sont chiffrées et hébergées en Europe.
+      <div className="auth-right">
+        <div className="auth-box">
+          <div style={{ fontSize: 18, fontWeight: 800, marginBottom: 6 }}>Connexion</div>
+          <div style={{ fontSize: 12.5, color: 'var(--t2)', marginBottom: 22 }}>
+            Connectez-vous avec votre compte Supabase.
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+              <label className="form-label">Email</label>
+              <input
+                className="form-input"
+                type="email"
+                placeholder="votre@email.fr"
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && handleLogin()}
+              />
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+              <label className="form-label">Mot de passe</label>
+              <input
+                className="form-input"
+                type="password"
+                placeholder="••••••••"
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && handleLogin()}
+              />
+            </div>
+
+            {error && <div className="auth-err">⚠ {error}</div>}
+
+            <button className="btn btn-primary" onClick={handleLogin} disabled={loading}>
+              {loading ? 'Connexion...' : 'Se connecter →'}
+            </button>
+          </div>
+
+          <div className="auth-demo">
+            <div className="auth-demo-title">Info</div>
+            <div style={{ fontSize: 12.5, color: 'var(--t2)', lineHeight: 1.6 }}>
+              Si la connexion est lente sur téléphone, essayez une fois puis laissez la page terminer le chargement.
+            </div>
+          </div>
         </div>
       </div>
     </div>

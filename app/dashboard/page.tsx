@@ -9,6 +9,10 @@ import { STATUS_CONFIG, PRIORITY_CONFIG } from '@/types'
 
 const fmt = (d: string) => d ? new Date(d).toLocaleDateString('fr-FR', { day:'2-digit', month:'2-digit', year:'numeric' }) : '—'
 const fmtDT = (d: string) => d ? new Date(d).toLocaleString('fr-FR', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' }) : '—'
+const monthKey = (iso: string) => {
+  const d = new Date(iso)
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+}
 
 export default function DashboardPage() {
   const { user } = useAuth()
@@ -57,6 +61,38 @@ export default function DashboardPage() {
     .filter(e => e.next_inspection)
     .sort((a, b) => new Date(a.next_inspection).getTime() - new Date(b.next_inspection).getTime())
     .slice(0, 5)
+
+  const upcomingPreventive = equipments
+    .filter(e => e.next_preventive)
+    .sort((a, b) => new Date(String(a.next_preventive)).getTime() - new Date(String(b.next_preventive)).getTime())
+    .slice(0, 5)
+
+  const byStatus = (list: Intervention[]) => ({
+    a_faire: list.filter(i => i.status === 'a_faire').length,
+    en_cours: list.filter(i => i.status === 'en_cours').length,
+    termine: list.filter(i => i.status === 'termine').length,
+    valide: list.filter(i => i.status === 'valide').length,
+  })
+
+  const statusCounts = byStatus(myOT)
+  const statusTotal = Object.values(statusCounts).reduce((a, b) => a + b, 0) || 1
+
+  const monthly = (() => {
+    const map = new Map<string, number>()
+    myOT.forEach(i => {
+      const k = monthKey(i.created_at)
+      map.set(k, (map.get(k) || 0) + 1)
+    })
+    const keys = Array.from(map.keys()).sort().slice(-6)
+    const vals = keys.map(k => map.get(k) || 0)
+    const max = Math.max(1, ...vals)
+    return keys.map((k, idx) => ({
+      k,
+      label: new Date(k + '-01').toLocaleDateString('fr-FR', { month: 'short' }),
+      v: vals[idx],
+      h: Math.round((vals[idx] / max) * 92),
+    }))
+  })()
 
   return (
     <AppLayout>
@@ -130,6 +166,49 @@ export default function DashboardPage() {
         </div>
 
         <div>
+          <div className="card" style={{ marginBottom: 12 }}>
+            <div style={{ padding: '14px 18px 12px', borderBottom: '1px solid var(--b0)', display: 'flex', alignItems: 'center', gap: 10 }}>
+              <span style={{ fontSize: 15, fontWeight: 700, flex: 1 }}>Activité</span>
+              <span style={{ fontSize: 11, color: 'var(--t2)', fontFamily: 'var(--font-mono)' }}>{monthly.reduce((a, b) => a + b.v, 0)} OT (6 mois)</span>
+            </div>
+            <div style={{ padding: 14, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <div style={{ background: 'var(--s3)', borderRadius: 10, border: '1px solid var(--b0)', padding: 12 }}>
+                <div style={{ fontSize: 10, color: 'var(--t3)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '.8px', marginBottom: 10 }}>
+                  OT par statut
+                </div>
+                {(['a_faire', 'en_cours', 'termine', 'valide'] as const).map(k => {
+                  const cfg = STATUS_CONFIG[k]
+                  const v = (statusCounts as any)[k] as number
+                  const pct = Math.round((v / statusTotal) * 100)
+                  return (
+                    <div key={k} style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+                      <div style={{ width: 8, height: 8, borderRadius: '50%', background: cfg.color, flexShrink: 0 }} />
+                      <div style={{ flex: 1, fontSize: 12, color: 'var(--t2)' }}>{cfg.label}</div>
+                      <div style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: cfg.color }}>{v}</div>
+                      <div style={{ width: 56, height: 6, borderRadius: 999, background: 'rgba(255,255,255,.06)', overflow: 'hidden' }}>
+                        <div style={{ width: `${pct}%`, height: '100%', background: cfg.color }} />
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+
+              <div style={{ background: 'var(--s3)', borderRadius: 10, border: '1px solid var(--b0)', padding: 12 }}>
+                <div style={{ fontSize: 10, color: 'var(--t3)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '.8px', marginBottom: 10 }}>
+                  OT / mois
+                </div>
+                <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end', height: 110 }}>
+                  {monthly.map(m => (
+                    <div key={m.k} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, flex: 1 }}>
+                      <div style={{ width: 14, height: m.h, borderRadius: 6, background: 'rgba(0,200,150,.55)', border: '1px solid rgba(0,200,150,.25)' }} />
+                      <div style={{ fontSize: 9, color: 'var(--t3)', fontFamily: 'var(--font-mono)' }}>{m.label}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+
           {/* Inspections à planifier */}
           <div className="card" style={{ marginBottom: 12 }}>
             <div style={{ padding: '14px 18px 12px', borderBottom: '1px solid var(--b0)' }}>
@@ -158,6 +237,36 @@ export default function DashboardPage() {
               })}
             </div>
           </div>
+
+          {upcomingPreventive.length > 0 && (
+            <div className="card" style={{ marginBottom: 12 }}>
+              <div style={{ padding: '14px 18px 12px', borderBottom: '1px solid var(--b0)' }}>
+                <span style={{ fontSize: 15, fontWeight: 700 }}>Maintenance préventive</span>
+              </div>
+              <div style={{ padding: '8px 18px' }}>
+                {upcomingPreventive.map(eq => {
+                  const days = Math.floor((new Date(String(eq.next_preventive)).getTime() - Date.now()) / 86400000)
+                  const urgent = days < 14
+                  const overdue = days < 0
+                  return (
+                    <div key={eq.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0', borderBottom: '1px solid var(--b0)' }}>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 13, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{eq.name}</div>
+                        <div style={{ fontSize: 11, color: 'var(--t2)' }}>{fmt(String(eq.next_preventive))}</div>
+                      </div>
+                      <span style={{
+                        fontSize: 11, fontFamily: 'var(--font-mono)', padding: '2px 7px', borderRadius: 4,
+                        color: overdue ? '#ff4757' : urgent ? '#ffa502' : 'var(--t2)',
+                        background: overdue ? 'rgba(255,71,87,.1)' : urgent ? 'rgba(255,165,2,.1)' : 'var(--s3)',
+                      }}>
+                        {overdue ? 'Dépassé' : `J−${days}`}
+                      </span>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
 
           {/* Info site */}
           <div className="card" style={{ border: '1px solid rgba(0,200,150,.15)', background: 'rgba(0,200,150,.03)' }}>
