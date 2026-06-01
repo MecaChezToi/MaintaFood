@@ -23,69 +23,92 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<any>(null)
   const [loading, setLoading] = useState(true)
 
-  const loadProfileFast = async (userId: string, accessToken?: string | null) => {
-    const cached = sessionStorage.getItem(`profile:${userId}`)
-    if (cached) {
-      try { setUser(JSON.parse(cached)) } catch {}
-    }
-    const profile = await profilesApi.getById(userId)
-    if (profile) {
-      sessionStorage.setItem(`profile:${userId}`, JSON.stringify(profile))
-      setUser(profile)
-    } else {
-      if (accessToken) {
-        try {
-          const res = await fetch('/api/profile/ensure', {
-            method: 'POST',
-            headers: { 'Authorization': `Bearer ${accessToken}` },
-          })
-          if (res.ok) {
-            const ensured = await res.json()
-            if (ensured?.id) {
-              sessionStorage.setItem(`profile:${userId}`, JSON.stringify(ensured))
-              setUser(ensured)
-              return
-            }
-          }
-        } catch {}
-      }
-      setUser(null)
-    }
-  }
-
   useEffect(() => {
-    // Charger la session existante
+    // Timeout de sécurité : si Supabase ne répond pas en 5s, on débloque quand même
+    const timeout = setTimeout(() => {
+      console.warn('[Auth] Timeout — Supabase ne répond pas. Vérifiez les variables d\'env.')
+      setLoading(false)
+    }, 5000)
+
     supabase.auth.getSession().then(async ({ data: { session } }) => {
+      clearTimeout(timeout)
       setSession(session)
       if (session?.user) {
-        await loadProfileFast(session.user.id, session.access_token)
+        try {
+          const cached = sessionStorage.getItem(`profile:${session.user.id}`)
+          if (cached) {
+            try { setUser(JSON.parse(cached)) } catch {}
+          }
+          const profile = await profilesApi.getById(session.user.id)
+          if (profile) {
+            sessionStorage.setItem(`profile:${session.user.id}`, JSON.stringify(profile))
+            setUser(profile)
+          } else {
+            // Essayer de créer le profil manquant via l'API
+            try {
+              const res = await fetch('/api/profile/ensure', {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${session.access_token}` },
+              })
+              if (res.ok) {
+                const ensured = await res.json()
+                if (ensured?.id) {
+                  sessionStorage.setItem(`profile:${session.user.id}`, JSON.stringify(ensured))
+                  setUser(ensured)
+                }
+              }
+            } catch (e) {
+              console.error('[Auth] Impossible de créer le profil:', e)
+            }
+          }
+        } catch (e) {
+          console.error('[Auth] Erreur chargement profil:', e)
+          setUser(null)
+        }
       }
+      setLoading(false)
+    }).catch((e) => {
+      clearTimeout(timeout)
+      console.error('[Auth] Erreur getSession:', e)
       setLoading(false)
     })
 
-    // Écouter les changements d'auth
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
       setSession(session)
       if (session?.user) {
-        await loadProfileFast(session.user.id, session.access_token)
+        try {
+          const profile = await profilesApi.getById(session.user.id)
+          if (profile) {
+            sessionStorage.setItem(`profile:${session.user.id}`, JSON.stringify(profile))
+            setUser(profile)
+          } else {
+            setUser(null)
+          }
+        } catch {
+          setUser(null)
+        }
       } else {
         setUser(null)
+        sessionStorage.clear()
       }
     })
 
-    return () => subscription.unsubscribe()
+    return () => {
+      clearTimeout(timeout)
+      subscription.unsubscribe()
+    }
   }, [])
 
   const signIn = async (email: string, password: string) => {
     const { error } = await supabase.auth.signInWithPassword({ email, password })
-    if (error) return { error: error.message }
-    return { error: null }
+    return { error: error?.message || null }
   }
 
   const signOut = async () => {
     await supabase.auth.signOut()
     setUser(null)
     setSession(null)
+    sessionStorage.clear()
   }
 
   return (
