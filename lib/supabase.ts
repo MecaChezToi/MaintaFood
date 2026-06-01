@@ -22,20 +22,42 @@ const ensureNoError = (error: any, context: string) => {
 }
 
 // ─── CLIENT ─────────────────────────────────────────────────
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+
+// Debug au démarrage — visible dans la console navigateur
+if (typeof window !== 'undefined') {
+  if (!supabaseUrl || !supabaseKey) {
+    console.error('[Supabase] ❌ Variables manquantes !', {
+      url: supabaseUrl ? '✅ OK' : '❌ MANQUANTE',
+      key: supabaseKey ? '✅ OK' : '❌ MANQUANTE',
+    })
+  } else {
+    console.log('[Supabase] ✅ Variables OK', {
+      url: supabaseUrl.slice(0, 30) + '...',
+      key: supabaseKey.slice(0, 10) + '...',
+    })
+  }
+}
+
 export const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  supabaseUrl || 'https://placeholder.supabase.co',
+  supabaseKey || 'placeholder-key',
+  {
+    auth: {
+      persistSession: true,
+      autoRefreshToken: true,
+      detectSessionInUrl: true,
+    }
+  }
 )
 
 // ─── AUTH ────────────────────────────────────────────────────
 export const auth = {
   signIn: (email: string, password: string) =>
     supabase.auth.signInWithPassword({ email, password }),
-
   signOut: () => supabase.auth.signOut(),
-
   getSession: () => supabase.auth.getSession(),
-
   onAuthChange: (cb: (session: any) => void) =>
     supabase.auth.onAuthStateChange((_event, session) => cb(session)),
 }
@@ -111,7 +133,6 @@ export const equipmentsApi = {
     return data
   },
 
-  // Récupérer les pièces compatibles d'un équipement
   getParts: async (equipmentId: string): Promise<Part[]> => {
     const { data } = await supabase
       .from('equipment_parts')
@@ -183,7 +204,6 @@ export const partsApi = {
 
 // ─── INTERVENTIONS ───────────────────────────────────────────
 export const interventionsApi = {
-  // Toutes les interventions (admin/chef) ou les siennes (technicien)
   getAll: async (): Promise<Intervention[]> => {
     const { data } = await supabase
       .from('interventions')
@@ -232,7 +252,6 @@ export const interventionsApi = {
     ensureNoError(error, 'Changement statut intervention')
   },
 
-  // Sauvegarder le rapport complet + signer
   submitReport: async (id: string, report: {
     actions: string
     observations: string
@@ -256,7 +275,6 @@ export const interventionsApi = {
     ensureNoError(error, 'Soumission rapport intervention')
   },
 
-  // Ajouter un commentaire
   addComment: async (interventionId: string, text: string, authorId: string): Promise<InterventionComment | null> => {
     const { data, error } = await supabase
       .from('intervention_comments')
@@ -267,7 +285,6 @@ export const interventionsApi = {
     return data
   },
 
-  // Utiliser une pièce (déduit le stock via trigger)
   usePart: async (interventionId: string, partId: string, qty: number): Promise<void> => {
     const { error } = await supabase.from('intervention_parts').insert({
       intervention_id: interventionId,
@@ -280,18 +297,13 @@ export const interventionsApi = {
 
 // ─── PHOTOS ──────────────────────────────────────────────────
 export const photosApi = {
-  // Upload photo vers Supabase Storage
   upload: async (file: File, interventionId: string, userId: string): Promise<string | null> => {
     const ext = file.name.split('.').pop()
     const path = `${interventionId}/${Date.now()}.${ext}`
-
     const { error } = await supabase.storage
       .from(STORAGE_BUCKET)
       .upload(path, file, { contentType: file.type })
-
     ensureNoError(error, 'Upload photo intervention')
-
-    // Enregistrer en base
     const { error: insertError } = await supabase.from('intervention_photos').insert({
       intervention_id: interventionId,
       url: path,
@@ -299,7 +311,6 @@ export const photosApi = {
       uploaded_by: userId,
     })
     ensureNoError(insertError, 'Enregistrement photo intervention')
-
     return path
   },
 }
@@ -309,18 +320,14 @@ export const filesApi = {
     const { data, error } = await supabase.storage
       .from(STORAGE_BUCKET)
       .list(folder, { limit: 100, sortBy: { column: 'created_at', order: 'desc' } })
-
     ensureNoError(error, `Liste fichiers ${folder}`)
-
     const files = (data ?? []).filter((item: any) => item.name && !item.id?.endsWith('/'))
     const withUrls = await Promise.all(files.map(async (item: any) => {
       const path = `${folder}/${item.name}`
       const { data: signed, error: signedError } = await supabase.storage
         .from(STORAGE_BUCKET)
         .createSignedUrl(path, 60 * 60)
-
       ensureNoError(signedError, `URL signee ${path}`)
-
       return {
         name: item.name,
         path,
@@ -329,7 +336,6 @@ export const filesApi = {
         size: item.metadata?.size || null,
       }
     }))
-
     return withUrls.filter(file => file.url)
   },
 
@@ -338,7 +344,6 @@ export const filesApi = {
     const { error } = await supabase.storage
       .from(STORAGE_BUCKET)
       .upload(path, file, { contentType: file.type, upsert: false })
-
     ensureNoError(error, `Upload fichier ${path}`)
     return { path, url: '' }
   },
@@ -357,9 +362,7 @@ export const auditApi = {
 
   log: async (userId: string, action: string, target: string, detail: string): Promise<void> => {
     const { error } = await supabase.from('audit_log').insert({ user_id: userId, action, target, detail })
-    if (error) {
-      console.warn('[Audit] insertion ignoree', error.message)
-    }
+    if (error) console.warn('[Audit] insertion ignoree', error.message)
   },
 }
 
@@ -377,7 +380,6 @@ export const siteConfigApi = {
 }
 
 // ─── REALTIME ────────────────────────────────────────────────
-// Écoute les changements en temps réel sur les interventions
 export const subscribeToInterventions = (callback: (payload: any) => void) => {
   return supabase
     .channel('interventions_changes')
