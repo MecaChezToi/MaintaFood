@@ -40,6 +40,7 @@ function NavIcon({ name, active }: { name: string; active: boolean }) {
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const { user, loading, signOut } = useAuth()
+  const handleSignOut = async () => { await signOut(); router.replace("/auth") }
   const router = useRouter()
   const pathname = usePathname()
 
@@ -65,7 +66,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         </div>
         <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
           <button className="btn btn-ghost" onClick={() => router.replace('/auth')}>Reconnexion</button>
-          <button className="btn btn-primary" onClick={signOut}>Déconnexion</button>
+          <button className="btn btn-primary" onClick={handleSignOut}>Déconnexion</button>
         </div>
       </div>
     </div>
@@ -126,7 +127,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               {ROLE_CONFIG[user.role].label}
             </div>
           </div>
-          <button onClick={signOut} title="Déconnexion" style={{
+          <button onClick={handleSignOut} title="Déconnexion" style={{
             background: 'transparent', border: '1px solid rgba(255,255,255,.08)', borderRadius: 4,
             color: '#7a8599', cursor: 'pointer', padding: '4px 6px', fontSize: 12,
           }}>⇥</button>
@@ -150,7 +151,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               color: user.color, display: 'flex', alignItems: 'center', justifyContent: 'center',
               fontSize: 11, fontWeight: 700, fontFamily: 'var(--font-mono)',
             }}>{user.avatar}</div>
-            <button onClick={signOut} className="hide-mobile" style={{
+            <button onClick={handleSignOut} className="hide-mobile" style={{
               background: 'transparent', border: '1px solid rgba(255,255,255,.08)',
               borderRadius: 4, color: '#7a8599', cursor: 'pointer', padding: '5px 8px', fontSize: 12,
             }}>Déconnexion</button>
@@ -185,7 +186,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               </Link>
             )
           })}
-          <button onClick={signOut} style={{
+          <button onClick={handleSignOut} style={{
             flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center',
             gap: 4, padding: '10px 6px', border: 'none', background: 'none',
             color: '#7a8599', fontSize: 10, fontFamily: 'var(--font-mono)',

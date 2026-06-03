@@ -530,6 +530,17 @@ export default function InterventionsPage() {
   const [showNew, setShowNew] = useState(false)
   const [selected, setSelected] = useState<Intervention | null>(null)
   const [showReport, setShowReport] = useState(false)
+  const [detailLoading, setDetailLoading] = useState(false)
+
+  const openDetail = async (interv: Intervention) => {
+    setSelected(interv) // Afficher immédiatement avec les données de la liste
+    setDetailLoading(true)
+    try {
+      const full = await interventionsApi.getById(interv.id)
+      if (full) setSelected(full)
+    } catch {}
+    setDetailLoading(false)
+  }
   const [error, setError] = useState<string | null>(null)
   const [toast, setToast] = useState<string | null>(null)
 
@@ -609,7 +620,7 @@ export default function InterventionsPage() {
           const pc = PRIORITY_CONFIG[i.priority]
           const isMine = i.technician_id === user.id
           return (
-            <div key={i.id} style={{ background: '#161719', border: '1px solid rgba(255,255,255,.06)', borderRadius: 12, overflow: 'hidden' }} onClick={() => setSelected(i)}>
+            <div key={i.id} style={{ background: '#161719', border: '1px solid rgba(255,255,255,.06)', borderRadius: 12, overflow: 'hidden' }} onClick={() => openDetail(i)}>
               <div style={{ height: 3, background: sc.color }} />
               <div style={{ padding: '12px 14px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
@@ -620,7 +631,7 @@ export default function InterventionsPage() {
                 <div style={{ fontSize: 12, color: 'var(--t2)' }}>{eq?.name} · {fmt(i.created_at)}</div>
                 {i.production_stopped && <div style={{ color: '#ff4757', fontSize: 11, marginTop: 4 }}>⚠️ Production arrêtée</div>}
                 {isMine && i.status !== 'termine' && i.status !== 'valide' && !i.report_verdict && (
-                  <button onClick={e => { e.stopPropagation(); setSelected(i); setShowReport(true) }} style={{ marginTop: 10, background: '#00c896', color: '#000', border: 'none', borderRadius: 6, padding: '8px 14px', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'var(--font-outfit)' }}>
+                  <button onClick={e => { e.stopPropagation(); openDetail(i).then(() => setShowReport(true)) }} style={{ marginTop: 10, background: '#00c896', color: '#000', border: 'none', borderRadius: 6, padding: '8px 14px', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'var(--font-outfit)' }}>
                     📝 Remplir le rapport
                   </button>
                 )}
@@ -647,7 +658,7 @@ export default function InterventionsPage() {
               const sc = STATUS_CONFIG[i.status]
               const pc = PRIORITY_CONFIG[i.priority]
               return (
-                <tr key={i.id} onClick={() => setSelected(i)}>
+                <tr key={i.id} onClick={() => openDetail(i)}>
                   <td>
                     <div style={{ fontWeight: 600, maxWidth: 260, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{i.title}</div>
                     {i.production_stopped && <div style={{ fontSize: 10, color: '#ff4757' }}>⚠️ Prod. arrêtée</div>}
@@ -677,6 +688,11 @@ export default function InterventionsPage() {
               <button onClick={() => setSelected(null)} style={{ background: 'transparent', border: '1px solid rgba(255,255,255,.08)', borderRadius: 6, color: 'var(--t2)', cursor: 'pointer', padding: '4px 8px', fontSize: 16, flexShrink: 0 }}>×</button>
             </div>
             <div style={{ padding: '18px 20px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 14 }}>
+              {detailLoading && (
+                <div style={{ fontSize: 11, color: 'var(--t3)', fontFamily: 'var(--font-mono)', textAlign: 'center', padding: '4px 0' }}>
+                  Chargement des détails…
+                </div>
+              )}
               {/* Statut */}
               <div>
                 <div className="form-label" style={{ marginBottom: 8, display: 'block' }}>Statut</div>
@@ -710,13 +726,15 @@ export default function InterventionsPage() {
               )}
             </div>
             <div style={{ padding: '12px 20px', borderTop: '1px solid rgba(255,255,255,.04)', display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-              {selected.technician_id === user.id && selected.status !== 'valide' && !selected.report_verdict && (
+              {/* Remplir rapport — technicien assigné OU admin/chef */}
+              {(selected.technician_id === user.id || ['admin','chef'].includes(user.role)) && selected.status !== 'valide' && !selected.report_verdict && (
                 <button onClick={() => setShowReport(true)} style={{ background: '#00c896', color: '#000', border: 'none', borderRadius: 6, padding: '8px 16px', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'var(--font-outfit)' }}>
                   📝 Remplir le rapport
                 </button>
               )}
-              {(user.role === 'admin' || user.role === 'chef') && selected.status === 'termine' && (
-                <button onClick={() => updateStatus(selected, 'valide')} style={{ background: '#a855f7', color: '#fff', border: 'none', borderRadius: 6, padding: '8px 16px', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'var(--font-outfit)' }}>
+              {/* Valider — admin/chef, statut termine ou rapport signé */}
+              {['admin','chef'].includes(user.role) && (selected.status === 'termine' || selected.report_verdict) && selected.status !== 'valide' && (
+                <button onClick={async () => { await updateStatus(selected, 'valide'); setSelected({ ...selected, status: 'valide' }) }} style={{ background: '#a855f7', color: '#fff', border: 'none', borderRadius: 6, padding: '8px 16px', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'var(--font-outfit)' }}>
                   ⭐ Valider
                 </button>
               )}
