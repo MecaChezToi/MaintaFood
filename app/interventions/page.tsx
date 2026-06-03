@@ -3,8 +3,8 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useAuth } from '@/components/layout/AuthProvider'
 import AppLayout from '@/components/layout/AppLayout'
-import { interventionsApi, equipmentsApi, auditApi, photosApi, profilesApi, siteConfigApi } from '@/lib/supabase'
-import type { Intervention, Equipment, Profile, SiteConfig } from '@/types'
+import { interventionsApi, equipmentsApi, auditApi, photosApi, profilesApi, partsApi, siteConfigApi } from '@/lib/supabase'
+import type { Intervention, Equipment, Profile, Part, SiteConfig } from '@/types'
 import { STATUS_CONFIG, PRIORITY_CONFIG, EQ_STATUS_CONFIG } from '@/types'
 
 const fmt   = (d: string) => d ? new Date(d).toLocaleDateString('fr-FR') : '—'
@@ -134,11 +134,14 @@ const openPdf = (interv: Intervention, cfg: SiteConfig | null) => {
   setTimeout(() => win.print(), 400)
 }
 
-// ─── REPORT FORM (4 étapes) ─────────────────────────────────
+// ─── REPORT FORM (4 étapes + pièces + photos) ──────────────
 function ReportForm({ interv, equipment, user, onSave, onClose }: any) {
   const [step, setStep] = useState(0)
   const [saving, setSaving] = useState(false)
+  const [parts, setParts] = useState<Part[]>([])
+  const [existingPhotos, setExistingPhotos] = useState<any[]>(interv.photos || [])
   const [form, setForm] = useState({
+    problemDesc: interv.description || '',
     actions: interv.report_actions || '',
     observations: interv.report_observations || '',
     duration: interv.report_duration || '',
@@ -148,9 +151,23 @@ function ReportForm({ interv, equipment, user, onSave, onClose }: any) {
     foodImpact: interv.food_impact || false,
     productionStopped: interv.production_stopped || false,
     photos: [] as File[],
+    usedParts: [] as { part: Part; qty: number }[],
   })
   const s = (k: string, v: any) => setForm(p => ({ ...p, [k]: v }))
-  const steps = ['Travaux', 'Hygiène', 'Vérification', 'Signature']
+  const steps = ['Problème', 'Travaux', 'Hygiène', 'Pièces', 'Vérification', 'Signature']
+
+  useEffect(() => {
+    partsApi.getAll().then(setParts).catch(() => {})
+  }, [])
+
+  const addPart = (part: Part) => {
+    const exists = form.usedParts.find(p => p.part.id === part.id)
+    if (exists) return
+    s('usedParts', [...form.usedParts, { part, qty: 1 }])
+  }
+  const removePart = (partId: string) => s('usedParts', form.usedParts.filter(p => p.part.id !== partId))
+  const updateQty = (partId: string, qty: number) => s('usedParts', form.usedParts.map(p => p.part.id === partId ? { ...p, qty: Math.max(1, qty) } : p))
+  const removeExistingPhoto = (photoId: string) => setExistingPhotos(prev => prev.filter((p: any) => p.id !== photoId))
 
   const submit = async () => {
     if (!form.actions || !form.verdict) return
@@ -161,11 +178,15 @@ function ReportForm({ interv, equipment, user, onSave, onClose }: any) {
         duration: Number(form.duration), verdict: form.verdict,
         hygiene: form.hygiene, cleaning: form.cleaning, signed_by: user.id,
       })
-      // Upload photos si présentes
+      // Upload nouvelles photos
       for (const file of form.photos) {
         await photosApi.upload(file, interv.id, user.id)
       }
-      await auditApi.log(user.id, 'Rapport signé', interv.title, `Verdict: ${form.verdict}`)
+      // Déduire les pièces du stock
+      for (const { part, qty } of form.usedParts) {
+        await interventionsApi.usePart(interv.id, part.id, qty)
+      }
+      await auditApi.log(user.id, 'Rapport signé', interv.title, `Verdict: ${form.verdict} | Pièces: ${form.usedParts.length}`)
       onSave()
       onClose()
     } finally { setSaving(false) }
@@ -206,36 +227,43 @@ function ReportForm({ interv, equipment, user, onSave, onClose }: any) {
         </div>
 
         <div style={styles.body}>
-          {/* ÉTAPE 0 — Travaux */}
+          {/* ÉTAPE 0 — Problème */}
           {step === 0 && <>
             <div style={styles.section}>
-              <div style={{ fontSize: 10, fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '.8px', color: 'var(--t2)' }}>Travaux effectués *</div>
-              <textarea className="form-input" placeholder="Décrivez précisément les travaux réalisés..." value={form.actions} onChange={e => s('actions', e.target.value)} style={{ minHeight: 100, resize: 'vertical' }} />
-            </div>
-            <div style={styles.section}>
-              <div style={{ fontSize: 10, fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '.8px', color: 'var(--t2)' }}>Observations / Anomalies</div>
-              <textarea className="form-input" placeholder="Anomalies constatées, points d'attention..." value={form.observations} onChange={e => s('observations', e.target.value)} style={{ minHeight: 70 }} />
+              <div style={{ fontSize: 10, fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '.8px', color: 'var(--t2)', marginBottom: 4 }}>Description du problème *</div>
+              <textarea className="form-input" placeholder="Décrivez précisément le problème constaté, les symptômes, le contexte..." value={form.problemDesc} onChange={e => s('problemDesc', e.target.value)} style={{ minHeight: 110, resize: 'vertical' }} />
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-                <label className="form-label">Durée (minutes)</label>
+                <label className="form-label">Durée intervention (min)</label>
                 <input className="form-input" type="number" placeholder="ex: 90" value={form.duration} onChange={e => s('duration', e.target.value)} />
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-                <label className="form-label">Impact</label>
+                <label className="form-label">Impact production</label>
                 <label style={styles.checkRow}>
                   <input type="checkbox" checked={form.productionStopped} onChange={e => s('productionStopped', e.target.checked)} style={{ accentColor: '#00c896' }} />
                   <span style={{ fontSize: 13 }}>Production arrêtée</span>
                 </label>
               </div>
             </div>
-            {/* Photos */}
+            {/* Photos existantes + nouvelles */}
             <div style={styles.section}>
-              <div style={{ fontSize: 10, fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '.8px', color: 'var(--t2)' }}>Photos ({form.photos.length})</div>
+              <div style={{ fontSize: 10, fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '.8px', color: 'var(--t2)', marginBottom: 8 }}>
+                Photos ({existingPhotos.length + form.photos.length})
+              </div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 8 }}>
+                {/* Photos existantes */}
+                {existingPhotos.map((photo: any) => (
+                  <div key={photo.id} style={{ aspectRatio: '1', background: 'rgba(0,200,150,.06)', border: '1px solid rgba(0,200,150,.15)', borderRadius: 8, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', fontSize: 10, color: '#00c896', fontFamily: 'var(--font-mono)', gap: 4, position: 'relative' }}>
+                    📷<span style={{ maxWidth: 60, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{photo.filename?.slice(0,8) || 'photo'}</span>
+                    <button onClick={() => removeExistingPhoto(photo.id)} style={{ position: 'absolute', top: 4, right: 4, background: 'rgba(255,71,87,.8)', border: 'none', borderRadius: '50%', width: 18, height: 18, color: '#fff', cursor: 'pointer', fontSize: 10, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
+                  </div>
+                ))}
+                {/* Nouvelles photos */}
                 {form.photos.map((f, i) => (
-                  <div key={i} style={{ aspectRatio: '1', background: 'rgba(255,255,255,.04)', borderRadius: 8, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', fontSize: 10, color: 'var(--t2)', fontFamily: 'var(--font-mono)', gap: 4 }}>
+                  <div key={i} style={{ aspectRatio: '1', background: 'rgba(255,255,255,.04)', borderRadius: 8, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', fontSize: 10, color: 'var(--t2)', fontFamily: 'var(--font-mono)', gap: 4, position: 'relative' }}>
                     📷<span>{f.name.slice(0, 8)}</span>
+                    <button onClick={() => s('photos', form.photos.filter((_, j) => j !== i))} style={{ position: 'absolute', top: 4, right: 4, background: 'rgba(255,71,87,.8)', border: 'none', borderRadius: '50%', width: 18, height: 18, color: '#fff', cursor: 'pointer', fontSize: 10, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
                   </div>
                 ))}
                 <label style={{ aspectRatio: '1', background: 'rgba(255,255,255,.02)', border: '1px dashed rgba(255,255,255,.12)', borderRadius: 8, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'var(--t2)' }}>
@@ -247,8 +275,20 @@ function ReportForm({ interv, equipment, user, onSave, onClose }: any) {
             </div>
           </>}
 
-          {/* ÉTAPE 1 — Hygiène */}
+          {/* ÉTAPE 1 — Travaux effectués */}
           {step === 1 && <>
+            <div style={styles.section}>
+              <div style={{ fontSize: 10, fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '.8px', color: 'var(--t2)', marginBottom: 4 }}>Travaux effectués / Correction apportée *</div>
+              <textarea className="form-input" placeholder="Décrivez précisément la correction apportée, les pièces remplacées, les réglages effectués..." value={form.actions} onChange={e => s('actions', e.target.value)} style={{ minHeight: 110, resize: 'vertical' }} />
+            </div>
+            <div style={styles.section}>
+              <div style={{ fontSize: 10, fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '.8px', color: 'var(--t2)', marginBottom: 4 }}>Observations / Points d'attention</div>
+              <textarea className="form-input" placeholder="Anomalies résiduelles, points à surveiller, recommandations..." value={form.observations} onChange={e => s('observations', e.target.value)} style={{ minHeight: 80 }} />
+            </div>
+          </>}
+
+          {/* ÉTAPE 2 — Hygiène */}
+          {step === 2 && <>
             <div style={{ ...styles.section, background: 'rgba(0,200,150,.06)', border: '1px solid rgba(0,200,150,.2)' }}>
               <div style={{ color: '#00c896', fontWeight: 600, fontSize: 13 }}>🛡️ Zone alimentaire — Vérifications obligatoires (IFS/BRC)</div>
             </div>
@@ -278,8 +318,47 @@ function ReportForm({ interv, equipment, user, onSave, onClose }: any) {
             </div>
           </>}
 
-          {/* ÉTAPE 2 — Vérification */}
-          {step === 2 && <>
+          {/* ÉTAPE 3 — Pièces utilisées */}
+          {step === 3 && <>
+            <div style={styles.section}>
+              <div style={{ fontSize: 10, fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '.8px', color: 'var(--t2)', marginBottom: 10 }}>Ajouter une pièce utilisée</div>
+              <select className="form-input" onChange={e => { const part = parts.find(p => p.id === e.target.value); if (part) addPart(part); e.target.value = '' }}>
+                <option value="">Sélectionner une pièce du stock...</option>
+                {parts.filter(p => !form.usedParts.find(up => up.part.id === p.id)).map(p => (
+                  <option key={p.id} value={p.id}>{p.name} — Stock: {p.qty} {p.unit}</option>
+                ))}
+              </select>
+            </div>
+            {form.usedParts.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '24px 0', color: 'var(--t3)', fontSize: 13 }}>
+                <div style={{ fontSize: 28, marginBottom: 8 }}>📦</div>
+                Aucune pièce sélectionnée — optionnel
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {form.usedParts.map(({ part, qty }) => (
+                  <div key={part.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', background: 'rgba(255,255,255,.03)', border: '1px solid rgba(255,255,255,.06)', borderRadius: 8 }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 13, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{part.name}</div>
+                      <div style={{ fontSize: 11, color: 'var(--t2)', fontFamily: 'var(--font-mono)' }}>Stock actuel : {part.qty} {part.unit}</div>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+                      <button onClick={() => updateQty(part.id, qty - 1)} style={{ width: 28, height: 28, borderRadius: 6, border: '1px solid rgba(255,255,255,.1)', background: 'transparent', color: 'var(--t1)', cursor: 'pointer', fontSize: 16 }}>−</button>
+                      <span style={{ width: 32, textAlign: 'center', fontFamily: 'var(--font-mono)', fontWeight: 700 }}>{qty}</span>
+                      <button onClick={() => updateQty(part.id, qty + 1)} style={{ width: 28, height: 28, borderRadius: 6, border: '1px solid rgba(255,255,255,.1)', background: 'transparent', color: 'var(--t1)', cursor: 'pointer', fontSize: 16 }}>+</button>
+                    </div>
+                    <button onClick={() => removePart(part.id)} style={{ width: 28, height: 28, borderRadius: 6, border: 'none', background: 'rgba(255,71,87,.15)', color: '#ff4757', cursor: 'pointer', fontSize: 14, flexShrink: 0 }}>×</button>
+                  </div>
+                ))}
+                <div style={{ padding: '8px 12px', background: 'rgba(255,165,2,.06)', border: '1px solid rgba(255,165,2,.15)', borderRadius: 8, fontSize: 12, color: '#ffa502' }}>
+                  ⚠️ Ces pièces seront déduites du stock à la signature du rapport.
+                </div>
+              </div>
+            )}
+          </>}
+
+          {/* ÉTAPE 4 — Vérification */}
+          {step === 4 && <>
             <div style={styles.section}>
               <div style={{ fontSize: 10, fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '.8px', color: 'var(--t2)', marginBottom: 10 }}>Verdict de l'intervention *</div>
               <div style={{ display: 'flex', gap: 8 }}>
@@ -298,6 +377,7 @@ function ReportForm({ interv, equipment, user, onSave, onClose }: any) {
                 ['Hygiène', form.hygiene ? '✅ Respectée' : '⚠️ Non confirmée'],
                 ['Nettoyage', form.cleaning ? '✅ Effectué' : '⚠️ Non effectué'],
                 ['Risque alim.', form.foodImpact ? '⚠️ Oui' : '✅ Non'],
+                ['Pièces utilisées', form.usedParts.length > 0 ? form.usedParts.map(p => `${p.part.name} ×${p.qty}`).join(', ') : 'Aucune'],
               ].map(([k, v]) => (
                 <div key={k} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid rgba(255,255,255,.04)', fontSize: 13 }}>
                   <span style={{ color: 'var(--t2)' }}>{k}</span>
@@ -307,8 +387,8 @@ function ReportForm({ interv, equipment, user, onSave, onClose }: any) {
             </div>
           </>}
 
-          {/* ÉTAPE 3 — Signature */}
-          {step === 3 && <>
+          {/* ÉTAPE 5 — Signature */}
+          {step === 5 && <>
             <div style={{ background: 'rgba(255,255,255,.03)', border: '1px solid rgba(255,255,255,.08)', borderRadius: 10, padding: 20, textAlign: 'center' }}>
               <div style={{ fontSize: 11, color: 'var(--t2)', marginBottom: 8 }}>Rapport certifié par</div>
               <div style={{ fontSize: 26, fontWeight: 700, fontFamily: 'var(--font-mono)', color: '#00c896', margin: '8px 0' }}>{user.name}</div>
