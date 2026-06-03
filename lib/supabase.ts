@@ -160,10 +160,7 @@ export const partsApi = {
 // ─── INTERVENTIONS ───────────────────────────────────────────
 // Liste légère (sans commentaires ni photos) pour la page liste
 const INT_LIST_SELECT = `
-  id,title,description,status,priority,food_impact,production_stopped,
-  equipment_id,technician_id,created_by,
-  report_verdict,report_duration,signed_at,
-  created_at,updated_at,organization_id,
+  *,
   equipment:equipments(id,name,status),
   technician:profiles!interventions_technician_id_fkey(id,name,avatar,color),
   creator:profiles!interventions_created_by_fkey(id,name)
