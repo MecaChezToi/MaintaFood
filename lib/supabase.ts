@@ -1,6 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 import type {
-  Profile, Equipment, Part, Intervention,
+  Profile, Organization, Equipment, Part, Intervention,
   InterventionComment, InterventionPhoto, InterventionPart,
   AuditLog, SiteConfig
 } from '@/types'
@@ -8,11 +8,7 @@ import type {
 const STORAGE_BUCKET = 'intervention-photos'
 
 const sanitizeFileName = (name: string) =>
-  name
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/[^a-zA-Z0-9._-]+/g, '-')
-    .replace(/-+/g, '-')
+  name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9._-]+/g, '-').replace(/-+/g, '-')
 
 const ensureNoError = (error: any, context: string) => {
   if (error) {
@@ -25,7 +21,6 @@ const ensureNoError = (error: any, context: string) => {
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
-// Debug au démarrage — visible dans la console navigateur
 if (typeof window !== 'undefined') {
   if (!supabaseUrl || !supabaseKey) {
     console.error('[Supabase] ❌ Variables manquantes !', {
@@ -43,13 +38,7 @@ if (typeof window !== 'undefined') {
 export const supabase = createClient(
   supabaseUrl || 'https://placeholder.supabase.co',
   supabaseKey || 'placeholder-key',
-  {
-    auth: {
-      persistSession: true,
-      autoRefreshToken: true,
-      detectSessionInUrl: true,
-    }
-  }
+  { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true } }
 )
 
 // ─── AUTH ────────────────────────────────────────────────────
@@ -62,7 +51,38 @@ export const auth = {
     supabase.auth.onAuthStateChange((_event, session) => cb(session)),
 }
 
+// ─── ORGANISATIONS ───────────────────────────────────────────
+export const organizationsApi = {
+  getCurrent: async (): Promise<Organization | null> => {
+    const { data } = await supabase
+      .from('organizations')
+      .select('*')
+      .single()
+    return data
+  },
+
+  update: async (id: string, updates: Partial<Organization>): Promise<void> => {
+    const { error } = await supabase
+      .from('organizations')
+      .update(updates)
+      .eq('id', id)
+    ensureNoError(error, 'Mise à jour organisation')
+  },
+
+  // Appelé lors de l'inscription d'un nouveau client
+  create: async (name: string, slug: string, adminUserId: string): Promise<string> => {
+    const { data, error } = await supabase.rpc('create_organization', {
+      p_name: name,
+      p_slug: slug,
+      p_admin_user_id: adminUserId,
+    })
+    ensureNoError(error, 'Création organisation')
+    return data
+  },
+}
+
 // ─── PROFILS ─────────────────────────────────────────────────
+// Note: RLS filtre automatiquement par organization_id — pas besoin de le passer
 export const profilesApi = {
   getAll: async (): Promise<Profile[]> => {
     const { data } = await supabase
@@ -81,15 +101,12 @@ export const profilesApi = {
     return data
   },
 
-  getCurrent: async (): Promise<Profile | null> => {
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return null
-    const { data } = await supabase
+  update: async (id: string, updates: Partial<Profile>): Promise<void> => {
+    const { error } = await supabase
       .from('profiles')
-      .select('*')
-      .eq('id', user.id)
-      .single()
-    return data
+      .update(updates)
+      .eq('id', id)
+    ensureNoError(error, 'Mise à jour profil')
   },
 }
 
@@ -112,7 +129,8 @@ export const equipmentsApi = {
     return data
   },
 
-  create: async (eq: Partial<Equipment>): Promise<Equipment | null> => {
+  create: async (eq: Omit<Partial<Equipment>, 'organization_id'>): Promise<Equipment | null> => {
+    // organization_id est automatiquement défini via RLS + current_organization_id()
     const { data, error } = await supabase
       .from('equipments')
       .insert(eq)
@@ -172,7 +190,7 @@ export const partsApi = {
     }))
   },
 
-  create: async (part: Partial<Part>): Promise<Part | null> => {
+  create: async (part: Omit<Partial<Part>, 'organization_id'>): Promise<Part | null> => {
     const { data, error } = await supabase
       .from('parts')
       .insert(part)
@@ -237,7 +255,7 @@ export const interventionsApi = {
     return data
   },
 
-  create: async (interv: Partial<Intervention>): Promise<Intervention | null> => {
+  create: async (interv: Omit<Partial<Intervention>, 'organization_id'>): Promise<Intervention | null> => {
     const { data, error } = await supabase
       .from('interventions')
       .insert(interv)
@@ -253,13 +271,8 @@ export const interventionsApi = {
   },
 
   submitReport: async (id: string, report: {
-    actions: string
-    observations: string
-    duration: number
-    verdict: string
-    hygiene: boolean
-    cleaning: boolean
-    signed_by: string
+    actions: string; observations: string; duration: number
+    verdict: string; hygiene: boolean; cleaning: boolean; signed_by: string
   }): Promise<void> => {
     const { error } = await supabase.from('interventions').update({
       report_actions:      report.actions,
@@ -287,9 +300,7 @@ export const interventionsApi = {
 
   usePart: async (interventionId: string, partId: string, qty: number): Promise<void> => {
     const { error } = await supabase.from('intervention_parts').insert({
-      intervention_id: interventionId,
-      part_id: partId,
-      qty_used: qty,
+      intervention_id: interventionId, part_id: partId, qty_used: qty,
     })
     ensureNoError(error, 'Ajout piece utilisee')
   },
@@ -300,15 +311,10 @@ export const photosApi = {
   upload: async (file: File, interventionId: string, userId: string): Promise<string | null> => {
     const ext = file.name.split('.').pop()
     const path = `${interventionId}/${Date.now()}.${ext}`
-    const { error } = await supabase.storage
-      .from(STORAGE_BUCKET)
-      .upload(path, file, { contentType: file.type })
+    const { error } = await supabase.storage.from(STORAGE_BUCKET).upload(path, file, { contentType: file.type })
     ensureNoError(error, 'Upload photo intervention')
     const { error: insertError } = await supabase.from('intervention_photos').insert({
-      intervention_id: interventionId,
-      url: path,
-      filename: file.name,
-      uploaded_by: userId,
+      intervention_id: interventionId, url: path, filename: file.name, uploaded_by: userId,
     })
     ensureNoError(insertError, 'Enregistrement photo intervention')
     return path
@@ -316,34 +322,21 @@ export const photosApi = {
 }
 
 export const filesApi = {
-  list: async (folder: string): Promise<Array<{ name: string; path: string; url: string; created_at: string | null; size: number | null }>> => {
+  list: async (folder: string) => {
     const { data, error } = await supabase.storage
-      .from(STORAGE_BUCKET)
-      .list(folder, { limit: 100, sortBy: { column: 'created_at', order: 'desc' } })
+      .from(STORAGE_BUCKET).list(folder, { limit: 100, sortBy: { column: 'created_at', order: 'desc' } })
     ensureNoError(error, `Liste fichiers ${folder}`)
     const files = (data ?? []).filter((item: any) => item.name && !item.id?.endsWith('/'))
-    const withUrls = await Promise.all(files.map(async (item: any) => {
+    return Promise.all(files.map(async (item: any) => {
       const path = `${folder}/${item.name}`
-      const { data: signed, error: signedError } = await supabase.storage
-        .from(STORAGE_BUCKET)
-        .createSignedUrl(path, 60 * 60)
-      ensureNoError(signedError, `URL signee ${path}`)
-      return {
-        name: item.name,
-        path,
-        url: signed?.signedUrl || '',
-        created_at: item.created_at || null,
-        size: item.metadata?.size || null,
-      }
+      const { data: signed } = await supabase.storage.from(STORAGE_BUCKET).createSignedUrl(path, 3600)
+      return { name: item.name, path, url: signed?.signedUrl || '', created_at: item.created_at || null, size: item.metadata?.size || null }
     }))
-    return withUrls.filter(file => file.url)
   },
 
-  upload: async (folder: string, file: File): Promise<{ path: string; url: string }> => {
+  upload: async (folder: string, file: File) => {
     const path = `${folder}/${Date.now()}-${sanitizeFileName(file.name)}`
-    const { error } = await supabase.storage
-      .from(STORAGE_BUCKET)
-      .upload(path, file, { contentType: file.type, upsert: false })
+    const { error } = await supabase.storage.from(STORAGE_BUCKET).upload(path, file, { contentType: file.type, upsert: false })
     ensureNoError(error, `Upload fichier ${path}`)
     return { path, url: '' }
   },

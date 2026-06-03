@@ -1,15 +1,25 @@
 // ============================================================
-// FIXOPS — Types TypeScript
+// FIXOPS — Types TypeScript (multi-tenant)
 // ============================================================
 
-export type UserRole =
-  | 'admin'
-  | 'manager'
-  | 'chef'
-  | 'technician'
+export type UserRole = 'admin' | 'manager' | 'chef' | 'technician'
 export type EqStatus = 'ok' | 'panne' | 'maintenance'
 export type IntStatus = 'a_faire' | 'en_cours' | 'termine' | 'valide'
 export type Priority = 'normale' | 'haute' | 'critique'
+
+// ─── ORGANISATION ────────────────────────────────────────────
+export interface Organization {
+  id: string
+  name: string
+  slug: string
+  address?: string
+  siret?: string
+  certifications?: string
+  plan: 'starter' | 'pro' | 'business'
+  active: boolean
+  created_at: string
+  updated_at: string
+}
 
 // ─── UTILISATEUR ────────────────────────────────────────────
 export interface Profile {
@@ -19,6 +29,7 @@ export interface Profile {
   avatar: string
   color: string
   active: boolean
+  organization_id: string
   created_at: string
   updated_at: string
 }
@@ -26,6 +37,7 @@ export interface Profile {
 // ─── ÉQUIPEMENT ─────────────────────────────────────────────
 export interface Equipment {
   id: string
+  organization_id: string
   name: string
   location: string
   zone: string
@@ -47,13 +59,13 @@ export interface Equipment {
   next_preventive?: string | null
   created_at: string
   updated_at: string
-  // Relations
   parts?: Part[]
 }
 
 // ─── PIÈCE DE RECHANGE ──────────────────────────────────────
 export interface Part {
   id: string
+  organization_id: string
   ref: string
   name: string
   category: string
@@ -68,7 +80,6 @@ export interface Part {
   location_detail: string
   created_at: string
   updated_at: string
-  // Relations
   equipment_ids?: string[]
   equipments?: Array<{ id: string; name: string }>
 }
@@ -76,6 +87,7 @@ export interface Part {
 // ─── INTERVENTION ────────────────────────────────────────────
 export interface Intervention {
   id: string
+  organization_id: string
   title: string
   description: string
   equipment_id: string
@@ -85,7 +97,6 @@ export interface Intervention {
   priority: Priority
   food_impact: boolean
   production_stopped: boolean
-  // Rapport
   report_actions: string | null
   report_observations: string | null
   report_duration: number | null
@@ -96,7 +107,6 @@ export interface Intervention {
   signed_by: string | null
   created_at: string
   updated_at: string
-  // Relations jointes
   equipment?: Equipment
   technician?: Profile
   creator?: Profile
@@ -139,6 +149,7 @@ export interface InterventionPart {
 // ─── AUDIT ──────────────────────────────────────────────────
 export interface AuditLog {
   id: string
+  organization_id: string
   user_id: string
   action: string
   target: string
@@ -182,4 +193,10 @@ export const EQ_STATUS_CONFIG: Record<EqStatus, { label: string; color: string }
   ok:          { label: 'Opérationnel', color: '#3cb87a' },
   panne:       { label: 'En panne',     color: '#ef4444' },
   maintenance: { label: 'Maintenance',  color: '#f59e0b' },
+}
+
+export const PLAN_CONFIG: Record<string, { label: string; color: string; maxUsers: number; maxEquipments: number }> = {
+  starter:  { label: 'Starter',  color: '#8b9bb4', maxUsers: 5,   maxEquipments: 20  },
+  pro:      { label: 'Pro',      color: '#3c82e8', maxUsers: 20,  maxEquipments: 100 },
+  business: { label: 'Business', color: '#a855f7', maxUsers: 999, maxEquipments: 999 },
 }

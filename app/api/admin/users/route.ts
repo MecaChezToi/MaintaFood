@@ -22,42 +22,44 @@ export async function POST(req: NextRequest) {
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 
   if (!url || !serviceRoleKey) {
-    return NextResponse.json(
-      { error: 'Configuration serveur manquante (SUPABASE_SERVICE_ROLE_KEY).' },
-      { status: 500 }
-    )
+    return NextResponse.json({ error: 'Configuration serveur manquante.' }, { status: 500 })
   }
 
   const supabase = createClient(url, serviceRoleKey, {
     auth: { persistSession: false, autoRefreshToken: false }
   })
 
-  const auth = req.headers.get('authorization') || ''
-  const token = auth.startsWith('Bearer ') ? auth.slice('Bearer '.length) : null
+  // Vérifier l'authentification
+  const authHeader = req.headers.get('authorization') || ''
+  const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null
   if (!token) return NextResponse.json({ error: 'Non authentifié.' }, { status: 401 })
 
   const { data: authData, error: authError } = await supabase.auth.getUser(token)
   if (authError || !authData.user) return NextResponse.json({ error: 'Session invalide.' }, { status: 401 })
 
+  // Vérifier que le requérant est admin DE LA MÊME organisation
   const { data: requesterProfile } = await supabase
     .from('profiles')
-    .select('role')
+    .select('role, organization_id')
     .eq('id', authData.user.id)
     .maybeSingle()
 
   if (requesterProfile?.role !== 'admin') {
-    return NextResponse.json({ error: 'Accès refusé.' }, { status: 403 })
+    return NextResponse.json({ error: 'Accès refusé — admin requis.' }, { status: 403 })
   }
 
-  const body = await req.json().catch(() => null) as any
-  const email = String(body?.email || '').trim().toLowerCase()
-  const password = String(body?.password || '')
-  const name = String(body?.name || '').trim()
-  const role = String(body?.role || 'technician')
+  const orgId = requesterProfile.organization_id
 
-  if (!email || !email.includes('@')) return NextResponse.json({ error: 'Email invalide.' }, { status: 400 })
-  if (!password || password.length < 6) return NextResponse.json({ error: 'Mot de passe trop court (min 6).' }, { status: 400 })
-  if (!name) return NextResponse.json({ error: 'Nom requis.' }, { status: 400 })
+  // Valider le body
+  const body = await req.json().catch(() => null) as any
+  const email    = String(body?.email    || '').trim().toLowerCase()
+  const password = String(body?.password || '')
+  const name     = String(body?.name     || '').trim()
+  const role     = String(body?.role     || 'technician')
+
+  if (!email || !email.includes('@'))   return NextResponse.json({ error: 'Email invalide.' }, { status: 400 })
+  if (!password || password.length < 6) return NextResponse.json({ error: 'Mot de passe trop court (min 6 car.).' }, { status: 400 })
+  if (!name)                            return NextResponse.json({ error: 'Nom requis.' }, { status: 400 })
   if (!['admin', 'chef', 'technician'].includes(role)) return NextResponse.json({ error: 'Rôle invalide.' }, { status: 400 })
 
   // Vérifier si l'email existe déjà
@@ -67,15 +69,15 @@ export async function POST(req: NextRequest) {
   let userId: string
 
   if (alreadyExists) {
-    // L'utilisateur Auth existe déjà — on met juste à jour le profil
     userId = alreadyExists.id
   } else {
-    // Créer le compte Auth
+    // Créer le compte Auth — passer organization_id dans les metadata
+    // pour que le trigger handle_new_user l'utilise
     const { data: created, error: createError } = await supabase.auth.admin.createUser({
       email,
       password,
       email_confirm: true,
-      user_metadata: { name },
+      user_metadata: { name, organization_id: orgId },
     })
 
     if (createError || !created.user?.id) {
@@ -88,9 +90,9 @@ export async function POST(req: NextRequest) {
   }
 
   const avatar = initials(name)
-  const color = pickColor(name)
+  const color  = pickColor(name)
 
-  // Upsert du profil — évite le conflit si le trigger l'a déjà créé
+  // Upsert profil avec organization_id
   const { error: profileError } = await supabase.from('profiles').upsert({
     id: userId,
     name,
@@ -98,11 +100,19 @@ export async function POST(req: NextRequest) {
     avatar,
     color,
     active: true,
+    organization_id: orgId,
   }, { onConflict: 'id' })
 
   if (profileError) {
     return NextResponse.json({ error: profileError.message }, { status: 400 })
   }
+
+  // S'assurer que le membre est bien dans organization_members
+  await supabase.from('organization_members').upsert({
+    organization_id: orgId,
+    user_id: userId,
+    role,
+  }, { onConflict: 'organization_id,user_id' })
 
   return NextResponse.json({ id: userId })
 }
