@@ -28,10 +28,12 @@ export async function POST(req: NextRequest) {
     )
   }
 
-  const supabase = createClient(url, serviceRoleKey, { auth: { persistSession: false, autoRefreshToken: false } })
+  const supabase = createClient(url, serviceRoleKey, {
+    auth: { persistSession: false, autoRefreshToken: false }
+  })
+
   const auth = req.headers.get('authorization') || ''
   const token = auth.startsWith('Bearer ') ? auth.slice('Bearer '.length) : null
-
   if (!token) return NextResponse.json({ error: 'Non authentifié.' }, { status: 401 })
 
   const { data: authData, error: authError } = await supabase.auth.getUser(token)
@@ -58,29 +60,45 @@ export async function POST(req: NextRequest) {
   if (!name) return NextResponse.json({ error: 'Nom requis.' }, { status: 400 })
   if (!['admin', 'chef', 'technician'].includes(role)) return NextResponse.json({ error: 'Rôle invalide.' }, { status: 400 })
 
-  const { data: created, error: createError } = await supabase.auth.admin.createUser({
-    email,
-    password,
-    email_confirm: true,
-    user_metadata: { name },
-  })
+  // Vérifier si l'email existe déjà
+  const { data: existingUsers } = await supabase.auth.admin.listUsers()
+  const alreadyExists = existingUsers?.users?.find(u => u.email === email)
 
-  if (createError || !created.user?.id) {
-    return NextResponse.json({ error: createError?.message || 'Création utilisateur échouée.' }, { status: 400 })
+  let userId: string
+
+  if (alreadyExists) {
+    // L'utilisateur Auth existe déjà — on met juste à jour le profil
+    userId = alreadyExists.id
+  } else {
+    // Créer le compte Auth
+    const { data: created, error: createError } = await supabase.auth.admin.createUser({
+      email,
+      password,
+      email_confirm: true,
+      user_metadata: { name },
+    })
+
+    if (createError || !created.user?.id) {
+      return NextResponse.json(
+        { error: createError?.message || 'Création utilisateur échouée.' },
+        { status: 400 }
+      )
+    }
+    userId = created.user.id
   }
 
-  const userId = created.user.id
   const avatar = initials(name)
   const color = pickColor(name)
 
-  const { error: profileError } = await supabase.from('profiles').insert({
+  // Upsert du profil — évite le conflit si le trigger l'a déjà créé
+  const { error: profileError } = await supabase.from('profiles').upsert({
     id: userId,
     name,
     role,
     avatar,
     color,
     active: true,
-  })
+  }, { onConflict: 'id' })
 
   if (profileError) {
     return NextResponse.json({ error: profileError.message }, { status: 400 })
@@ -88,4 +106,3 @@ export async function POST(req: NextRequest) {
 
   return NextResponse.json({ id: userId })
 }
-
