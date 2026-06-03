@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import AppLayout from '@/components/layout/AppLayout'
 import { useAuth } from '@/components/layout/AuthProvider'
@@ -21,13 +21,103 @@ const addDays = (days: number) => {
 }
 
 const ZONE_CONFIG: Record<ZoneKey, { label: string; desc: string; color: string; x: number; y: number; w: number; h: number }> = {
-  A: { label: 'Usinage', desc: 'Machines-outils et précision', color: '#e8643c', x: 6,  y: 8,  w: 38, h: 36 },
-  B: { label: 'Atelier & Stockage', desc: 'Pneumatique et logistique', color: '#00c896', x: 6,  y: 52, w: 38, h: 34 },
-  C: { label: 'Production Ligne A', desc: 'Process alimentaire', color: '#a855f7', x: 56, y: 42, w: 36, h: 32 },
-  D: { label: 'Local technique', desc: 'Utilités et énergie', color: '#f59e0b', x: 56, y: 8,  w: 28, h: 24 },
+  A: { label: 'Lignes 1R', desc: 'Emballage & conditionnement', color: '#e8643c', x: 4,  y: 58, w: 24, h: 30 },
+  B: { label: 'Atelier 2R-3R', desc: 'SIG · Hacos · Stockage',   color: '#00c896', x: 4,  y: 30, w: 46, h: 26 },
+  C: { label: 'Production 3R-4R', desc: 'Stim · Écomec · Sapal', color: '#a855f7', x: 4,  y: 6,  w: 52, h: 22 },
+  D: { label: 'Lignes 4R droite', desc: 'Bosch · Sapal · Frigo', color: '#f59e0b', x: 58, y: 6,  w: 36, h: 52 },
 }
 
 const PREVENTIVE_TYPES = ['nettoyage', 'vidange', 'changement tapis', 'graissage', 'inspection'] as const
+
+// ─── QR CODE GENERATOR (sans lib externe) ──────────────────
+function QRCodeDisplay({ equipment }: { equipment: Equipment }) {
+  const canvasRef = useRef<HTMLCanvasElement>(null)
+  const url = typeof window !== 'undefined'
+    ? `${window.location.origin}/eq/${equipment.id}`
+    : `/eq/${equipment.id}`
+
+  useEffect(() => {
+    const canvas = canvasRef.current
+    if (!canvas) return
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return
+
+    // Simple QR-like visual avec data URL
+    const size = 200
+    canvas.width = size
+    canvas.height = size
+    ctx.fillStyle = '#ffffff'
+    ctx.fillRect(0, 0, size, size)
+
+    // Encode l'URL en pattern visuel (pas un vrai QR mais lisible par redirection)
+    // Pour un vrai QR code, on génère un lien vers api.qrserver.com
+    const img = new Image()
+    img.crossOrigin = 'anonymous'
+    img.src = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(url)}&bgcolor=ffffff&color=000000&margin=10`
+    img.onload = () => {
+      ctx.drawImage(img, 0, 0, size, size)
+    }
+    img.onerror = () => {
+      // Fallback : afficher juste l'ID
+      ctx.fillStyle = '#000'
+      ctx.font = '12px monospace'
+      ctx.textAlign = 'center'
+      ctx.fillText('QR Code', size/2, size/2)
+      ctx.fillText(equipment.id.slice(0,8), size/2, size/2 + 20)
+    }
+  }, [equipment.id, url])
+
+  const downloadQR = () => {
+    const canvas = canvasRef.current
+    if (!canvas) return
+    const a = document.createElement('a')
+    a.download = `QR-${equipment.name.replace(/\s+/g, '-')}.png`
+    a.href = canvas.toDataURL('image/png')
+    a.click()
+  }
+
+  const printQR = () => {
+    const canvas = canvasRef.current
+    if (!canvas) return
+    const win = window.open('', '_blank')
+    if (!win) return
+    win.document.write(`
+      <html><head><title>QR — ${equipment.name}</title>
+      <style>body{font-family:sans-serif;text-align:center;padding:40px;} h2{color:#000;} p{color:#555;font-size:13px;}</style>
+      </head><body>
+      <h2>${equipment.name}</h2>
+      <p>N° série : ${equipment.serial || '—'} · Zone ${equipment.zone || '—'}</p>
+      <img src="${canvas.toDataURL()}" style="width:200px;height:200px;border:1px solid #eee;" />
+      <p style="font-size:11px;color:#999;margin-top:10px;">${url}</p>
+      <script>window.onload=()=>window.print()</script>
+      </body></html>
+    `)
+    win.document.close()
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14 }}>
+      <div style={{ padding: 12, background: '#fff', borderRadius: 12, boxShadow: '0 0 0 1px rgba(255,255,255,.08)' }}>
+        <canvas ref={canvasRef} style={{ display: 'block', width: 180, height: 180 }} />
+      </div>
+      <div style={{ textAlign: 'center' }}>
+        <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 4 }}>{equipment.name}</div>
+        <div style={{ fontSize: 10, color: 'var(--t3)', fontFamily: 'var(--font-mono)', wordBreak: 'break-all', maxWidth: 260 }}>{url}</div>
+      </div>
+      <div style={{ display: 'flex', gap: 8 }}>
+        <button onClick={downloadQR} style={{ padding: '8px 16px', background: 'rgba(0,200,150,.15)', border: '1px solid rgba(0,200,150,.3)', borderRadius: 8, color: '#00c896', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+          ⬇ Télécharger
+        </button>
+        <button onClick={printQR} style={{ padding: '8px 16px', background: 'rgba(255,255,255,.06)', border: '1px solid rgba(255,255,255,.1)', borderRadius: 8, color: 'var(--t1)', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+          🖨 Imprimer
+        </button>
+      </div>
+      <div style={{ fontSize: 11, color: 'var(--t3)', textAlign: 'center', maxWidth: 280, lineHeight: 1.5 }}>
+        Scanner ce QR code ouvre directement la fiche machine et permet de créer une intervention.
+      </div>
+    </div>
+  )
+}
 
 function EquipmentDetailModal({
   equipment,
@@ -685,6 +775,7 @@ export default function PlanPage() {
   const [loading, setLoading] = useState(true)
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
   const [selected, setSelected] = useState<Equipment | null>(null)
+  const [planMode, setPlanMode] = useState<'schema' | 'photo'>('schema')
   const [showAddMachine, setShowAddMachine] = useState(false)
   const [createFor, setCreateFor] = useState<Equipment | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -870,7 +961,25 @@ const canManage =
         </div>
 
         <div style={{ padding: 16 }}>
-          <svg viewBox="0 0 100 100" style={{ width: '100%', minHeight: 420, display: 'block', background: '#080909', borderRadius: 10 }}>
+          {/* Toggle plan photo / plan schématique */}
+          <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
+            <button onClick={() => setPlanMode('schema')} style={{ padding: '5px 12px', borderRadius: 6, border: '1px solid rgba(255,255,255,.1)', background: planMode === 'schema' ? 'rgba(0,200,150,.15)' : 'transparent', color: planMode === 'schema' ? '#00c896' : 'var(--t2)', fontSize: 12, cursor: 'pointer' }}>Schématique</button>
+            <button onClick={() => setPlanMode('photo')} style={{ padding: '5px 12px', borderRadius: 6, border: '1px solid rgba(255,255,255,.1)', background: planMode === 'photo' ? 'rgba(0,200,150,.15)' : 'transparent', color: planMode === 'photo' ? '#00c896' : 'var(--t2)', fontSize: 12, cursor: 'pointer' }}>Plan réel</button>
+          </div>
+
+          <div style={{ position: 'relative', width: '100%', borderRadius: 10, overflow: 'hidden', background: '#080909' }}>
+            {/* Image du plan réel en fond */}
+            {planMode === 'photo' && (
+              <img
+                src="/plan-site.png"
+                alt="Plan du site"
+                style={{ width: '100%', display: 'block', opacity: 0.85, filter: 'brightness(0.9) contrast(1.1)' }}
+                onError={e => { (e.target as HTMLImageElement).style.display = 'none' }}
+              />
+            )}
+
+          <svg viewBox="0 0 100 100" style={{ width: '100%', minHeight: planMode === 'photo' ? 0 : 420, position: planMode === 'photo' ? 'absolute' : 'relative', top: 0, left: 0, display: 'block', background: planMode === 'photo' ? 'transparent' : '#080909' }}>
+            {planMode === 'schema' && <>
             <rect width="100" height="100" fill="#080909" />
             <defs>
               <pattern id="grid-plan" width="5" height="5" patternUnits="userSpaceOnUse">
@@ -878,8 +987,6 @@ const canManage =
               </pattern>
             </defs>
             <rect width="100" height="100" fill="url(#grid-plan)" />
-            <rect x="46" y="0" width="6" height="100" fill="rgba(255,255,255,.02)" />
-            <text x="49" y="96" textAnchor="middle" fill="rgba(255,255,255,.10)" fontSize="2.4" fontFamily="JetBrains Mono">COULOIR</text>
 
             {(Object.entries(ZONE_CONFIG) as [ZoneKey, typeof ZONE_CONFIG[ZoneKey]][]).map(([zone, cfg]) => (
               <g key={zone}>
@@ -888,6 +995,7 @@ const canManage =
                 <text x={cfg.x + 2} y={cfg.y + 7} fill={`${cfg.color}bb`} fontSize="1.9" fontFamily="JetBrains Mono">{cfg.label}</text>
               </g>
             ))}
+            </>}
 
             {filtered.map(eq => {
               const statusCfg = EQ_STATUS_CONFIG[eq.status]
@@ -900,38 +1008,45 @@ const canManage =
               return (
                 <g key={eq.id} style={{ cursor: 'pointer' }} onClick={() => setSelected(eq)}>
                   <rect
-                    x={x}
-                    y={y}
-                    width={w}
-                    height={h}
-                    rx="1.5"
+                    x={x} y={y} width={w} height={h} rx="1.5"
                     fill={active ? `${eq.color}30` : `${eq.color}16`}
                     stroke={active ? eq.color : `${eq.color}88`}
                     strokeWidth={active ? '.8' : '.45'}
                     style={{ filter: active ? `drop-shadow(0 0 4px ${eq.color}88)` : 'none', transition: 'all .12s' }}
                   />
+                  {/* Icône machine générique */}
+                  <rect x={x+1} y={y+1.5} width={3} height={h-3} rx=".5" fill={`${eq.color}40`} />
+                  <rect x={x+1.3} y={y+1.8} width={2.4} height={1.2} rx=".3" fill={eq.color} opacity=".6" />
+                  {/* Pastille statut */}
                   <circle cx={x + w - 1.4} cy={y + 1.4} r="1.1" fill={statusCfg.color} />
-                  {eq.food_safe && <text x={x + 1} y={y + 2.8} fill="rgba(0,200,150,.85)" fontSize="1.7" fontFamily="JetBrains Mono">S</text>}
+                  {/* Badge alimentaire */}
+                  {eq.food_safe && <text x={x + 1} y={y + 2.8} fill="rgba(0,200,150,.85)" fontSize="1.7" fontFamily="JetBrains Mono">✓</text>}
+                  {/* Nom machine */}
                   <text
-                    x={x + w / 2}
+                    x={x + w / 2 + 1}
                     y={y + h / 2 + .6}
                     textAnchor="middle"
-                    fill={active ? eq.color : 'rgba(255,255,255,.78)'}
+                    fill={active ? eq.color : 'rgba(255,255,255,.85)'}
                     fontSize="1.9"
                     fontFamily="JetBrains Mono"
-                    fontWeight="600"
+                    fontWeight="700"
                   >
-                    {eq.name.length > 15 ? `${eq.name.slice(0, 14)}…` : eq.name}
+                    {eq.name.length > 12 ? `${eq.name.slice(0, 11)}…` : eq.name}
                   </text>
+                  {/* Indicateur QR */}
+                  <text x={x + w - 2.8} y={y + h - 1} fill={`${eq.color}99`} fontSize="1.5" fontFamily="JetBrains Mono">QR</text>
                 </g>
               )
             })}
 
-            <g transform="translate(95,6)">
-              <circle cx="0" cy="0" r="2.8" fill="#111315" stroke="rgba(255,255,255,.08)" strokeWidth=".4" />
-              <text x="0" y=".8" textAnchor="middle" fill="#e4e8f0" fontSize="2.5" fontFamily="JetBrains Mono" fontWeight="700">N</text>
-            </g>
+            {planMode === 'schema' && (
+              <g transform="translate(95,6)">
+                <circle cx="0" cy="0" r="2.8" fill="#111315" stroke="rgba(255,255,255,.08)" strokeWidth=".4" />
+                <text x="0" y=".8" textAnchor="middle" fill="#e4e8f0" fontSize="2.5" fontFamily="JetBrains Mono" fontWeight="700">N</text>
+              </g>
+            )}
           </svg>
+          </div>
         </div>
       </div>
 

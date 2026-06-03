@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 160" width="200" height="160">
+  <rect width="200" height="160" fill="#0f1012" rx="8"/>
+  <!-- Corps principal -->
+  <rect x="30" y="40" width="140" height="80" rx="4" fill="#1e2124" stroke="#f59e0b" stroke-width="1.5"/>
+  <!-- Convoyeur bas -->
+  <rect x="10" y="110" width="180" height="14" rx="3" fill="#2a2d32" stroke="#f59e0b44" stroke-width="1"/>
+  <!-- Rouleaux convoyeur -->
+  <circle cx="25" cy="117" r="5" fill="#f59e0b33" stroke="#f59e0b" stroke-width="1"/>
+  <circle cx="175" cy="117" r="5" fill="#f59e0b33" stroke="#f59e0b" stroke-width="1"/>
+  <!-- Armoire électrique -->
+  <rect x="145" y="30" width="30" height="50" rx="3" fill="#252830" stroke="#f59e0b66" stroke-width="1"/>
+  <circle cx="160" cy="45" r="4" fill="#ff4757" opacity="0.8"/>
+  <circle cx="160" cy="58" r="3" fill="#00c896" opacity="0.8"/>
+  <!-- Tuyaux -->
+  <path d="M60 40 L60 20 L120 20 L120 40" fill="none" stroke="#f59e0b44" stroke-width="2"/>
+  <!-- Label -->
+  <text x="100" y="90" text-anchor="middle" fill="#f59e0b" font-size="14" font-family="monospace" font-weight="bold">STIM</text>
+  <text x="100" y="106" text-anchor="middle" fill="#6b7280" font-size="9" font-family="monospace">Ligne production</text>
+  <!-- Indicateur alimentaire -->
+  <rect x="8" y="8" width="46" height="16" rx="3" fill="#00c89614" stroke="#00c89633" stroke-width="1"/>
+  <text x="31" y="20" text-anchor="middle" fill="#00c896" font-size="9" font-family="monospace">✓ Alim.</text>
+</svg>

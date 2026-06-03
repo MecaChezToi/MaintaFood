@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 160" width="200" height="160">
+  <rect width="200" height="160" fill="#0f1012" rx="8"/>
+  <!-- Cuve principale -->
+  <rect x="40" y="30" width="90" height="100" rx="6" fill="#1e2124" stroke="#ff4757" stroke-width="1.5"/>
+  <!-- Intérieur cuve (chocolat) -->
+  <rect x="50" y="50" width="70" height="60" rx="4" fill="#3d1a0a" stroke="#ff475733" stroke-width="1"/>
+  <!-- Surface chocolat fondu -->
+  <ellipse cx="85" cy="52" rx="33" ry="4" fill="#6b2d0e" opacity="0.8"/>
+  <!-- Agitateur -->
+  <line x1="85" y1="52" x2="85" y2="100" stroke="#ff475799" stroke-width="2"/>
+  <line x1="65" y1="75" x2="105" y2="75" stroke="#ff475799" stroke-width="1.5"/>
+  <!-- Pompe sortie -->
+  <rect x="130" y="70" width="30" height="20" rx="3" fill="#252830" stroke="#ff475766" stroke-width="1"/>
+  <path d="M160 80 L180 80" stroke="#ff4757" stroke-width="2" stroke-dasharray="3,2"/>
+  <!-- Panneau contrôle -->
+  <rect x="42" y="32" width="28" height="18" rx="2" fill="#252830" stroke="#ff475744" stroke-width="1"/>
+  <circle cx="52" cy="41" r="3" fill="#ff4757" opacity="0.9"/>
+  <circle cx="62" cy="41" r="3" fill="#00c896" opacity="0.8"/>
+  <!-- Résistances chauffantes -->
+  <path d="M50 110 Q60 118 70 110 Q80 102 90 110 Q100 118 110 110" fill="none" stroke="#ff475766" stroke-width="1.5"/>
+  <!-- Label -->
+  <text x="100" y="148" text-anchor="middle" fill="#ff4757" font-size="14" font-family="monospace" font-weight="bold">HACOS</text>
+  <!-- Temp indicator -->
+  <rect x="142" y="32" width="48" height="16" rx="3" fill="#ff475714" stroke="#ff475733" stroke-width="1"/>
+  <text x="166" y="44" text-anchor="middle" fill="#ff4757" font-size="9" font-family="monospace">T° 45°C</text>
+  <!-- Indicateur alimentaire -->
+  <rect x="8" y="8" width="46" height="16" rx="3" fill="#00c89614" stroke="#00c89633" stroke-width="1"/>
+  <text x="31" y="20" text-anchor="middle" fill="#00c896" font-size="9" font-family="monospace">✓ Alim.</text>
+</svg>
