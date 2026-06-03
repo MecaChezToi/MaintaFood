@@ -453,7 +453,10 @@ function AddPartModal({ onClose, onSave }: { onClose: () => void; onSave: (part:
 // ─── MAIN PAGE ────────────────────────────────────────────────
 export default function StorePage() {
   const { user } = useAuth()
-  const { parts: stock, interventions: allInterventions, loading } = useData()
+  const { parts: stockFromStore, interventions: allInterventions, loading } = useData()
+  const [localStock, setLocalStock] = useState<Part[]>([])
+  // Utiliser stock local si modifié, sinon DataStore
+  const stock = localStock.length > 0 ? localStock : stockFromStore
   const [selected, setSelected] = useState<Part | null>(null)
   const [search, setSearch] = useState('')
   const [catFilter, setCatFilter] = useState('all')
@@ -510,20 +513,18 @@ export default function StorePage() {
     if (!showAdj) return
     // Mise à jour locale immédiate (optimistic)
     const newQty = Math.max(0, showAdj.qty + delta)
-    setStock(s => s.map(p => p.id === showAdj.id ? { ...p, qty: newQty } : p))
+    setLocalStock(stock.map(p => p.id === showAdj.id ? { ...p, qty: newQty } : p))
     if (selected?.id === showAdj.id) setSelected(s => s ? { ...s, qty: newQty } : s)
-    setMoves(m => [{ partName: showAdj.name, qty: delta, date: today(), tech: user.name.split(' ')[0], ot: reason }, ...m])
     // Persistance Supabase
     await partsApi.adjustStock(showAdj.id, newQty)
-    // Forcer refresh local du stock
-    const updated = stock.map(p => p.id === showAdj.id ? { ...p, qty: newQty } : p)
     await auditApi.log(user.id, delta > 0 ? 'Réception stock' : delta < 0 ? 'Consommation stock' : 'Inventaire', showAdj.name, `${delta > 0 ? '+' : ''}${delta} ${showAdj.unit} · ${reason}`)
     setShowAdj(null)
     showToast(delta < 0 ? `${Math.abs(delta)} ${showAdj.unit} prélevé(s)` : `+${delta} ${showAdj.unit} ajouté(s)`)
   }
 
   const handleAddPart = async (part: Partial<Part>) => {
-    await partsApi.create(part)
+    const created = await partsApi.create(part)
+    if (created) setLocalStock(prev => prev.length > 0 ? [...prev, created] : [...stockFromStore, created])
     await auditApi.log(user.id, 'Pièce créée', part.name || '', `Réf: ${part.ref}`)
     await load()
     setShowAdd(false)
