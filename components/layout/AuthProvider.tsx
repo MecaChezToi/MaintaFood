@@ -23,108 +23,73 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<any>(null)
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
-    let cancelled = false
+  const loadProfile = async (userId: string, accessToken: string) => {
+    // Cache d'abord
+    try {
+      const cached = sessionStorage.getItem(`profile:${userId}`)
+      if (cached) setUser(JSON.parse(cached))
+    } catch {}
 
-    const init = async () => {
-      // 1. Charger le profil depuis le cache instantanément
-      try {
-        const keys = Object.keys(localStorage).filter(k => k.startsWith('sb-') && k.endsWith('-auth-token'))
-        if (keys.length > 0) {
-          const raw = localStorage.getItem(keys[0])
-          if (raw) {
-            const parsed = JSON.parse(raw)
-            const cachedSession = parsed?.access_token ? parsed : parsed?.session
-            if (cachedSession?.user?.id) {
-              const profileKey = `profile:${cachedSession.user.id}`
-              const cachedProfile = sessionStorage.getItem(profileKey)
-              if (cachedProfile) {
-                const profile = JSON.parse(cachedProfile)
-                if (!cancelled) {
-                  setUser(profile)
-                  setSession(cachedSession)
-                  setLoading(false) // Débloquer immédiatement avec le cache
-                }
-              }
-            }
-          }
-        }
-      } catch (e) {
-        // Cache indisponible — pas grave
+    // Puis Supabase
+    try {
+      const profile = await profilesApi.getById(userId)
+      if (profile) {
+        sessionStorage.setItem(`profile:${userId}`, JSON.stringify(profile))
+        setUser(profile)
+        return
       }
-
-      // 2. Vérifier la vraie session Supabase en arrière-plan
-      try {
-        const { data: { session } } = await supabase.auth.getSession()
-        if (cancelled) return
-
-        setSession(session)
-
-        if (session?.user) {
-          const profileKey = `profile:${session.user.id}`
-          const profile = await profilesApi.getById(session.user.id)
-          if (cancelled) return
-          if (profile) {
-            sessionStorage.setItem(profileKey, JSON.stringify(profile))
-            setUser(profile)
-          } else {
-            // Profil manquant — essayer de le créer
-            try {
-              const res = await fetch('/api/profile/ensure', {
-                method: 'POST',
-                headers: { 'Authorization': `Bearer ${session.access_token}` },
-              })
-              if (res.ok) {
-                const ensured = await res.json()
-                if (ensured?.id && !cancelled) {
-                  sessionStorage.setItem(profileKey, JSON.stringify(ensured))
-                  setUser(ensured)
-                }
-              }
-            } catch {}
-          }
-        } else {
-          if (!cancelled) setUser(null)
+      // Profil manquant — créer
+      const res = await fetch('/api/profile/ensure', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${accessToken}` },
+      })
+      if (res.ok) {
+        const ensured = await res.json()
+        if (ensured?.id) {
+          sessionStorage.setItem(`profile:${userId}`, JSON.stringify(ensured))
+          setUser(ensured)
         }
-      } catch (e) {
-        console.warn('[Auth] getSession échoué:', e)
-      } finally {
-        if (!cancelled) setLoading(false)
       }
+    } catch (e) {
+      console.warn('[Auth] Erreur chargement profil:', e)
     }
+  }
 
-    init()
-
-    // Écouter les changements auth (login/logout)
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      if (cancelled) return
+  useEffect(() => {
+    // Écouter les changements auth EN PREMIER (login, logout, refresh)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       setSession(session)
       if (session?.user) {
-        try {
-          const profile = await profilesApi.getById(session.user.id)
-          if (!cancelled && profile) {
-            sessionStorage.setItem(`profile:${session.user.id}`, JSON.stringify(profile))
-            setUser(profile)
-          }
-        } catch {
-          if (!cancelled) setUser(null)
-        }
+        await loadProfile(session.user.id, session.access_token)
       } else {
-        if (!cancelled) {
-          setUser(null)
-          sessionStorage.clear()
-        }
+        setUser(null)
+        sessionStorage.clear()
       }
-      if (!cancelled) setLoading(false)
+      setLoading(false)
     })
 
+    // Puis vérifier la session existante
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      if (session?.user) {
+        setSession(session)
+        await loadProfile(session.user.id, session.access_token)
+      }
+      setLoading(false)
+    }).catch(() => {
+      setLoading(false)
+    })
+
+    // Timeout de sécurité 4s
+    const t = setTimeout(() => setLoading(false), 4000)
+
     return () => {
-      cancelled = true
       subscription.unsubscribe()
+      clearTimeout(t)
     }
   }, [])
 
   const signIn = async (email: string, password: string) => {
+    // signIn déclenche onAuthStateChange automatiquement
     const { error } = await supabase.auth.signInWithPassword({ email, password })
     return { error: error?.message || null }
   }
