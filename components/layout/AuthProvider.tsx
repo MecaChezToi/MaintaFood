@@ -87,7 +87,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (event === 'TOKEN_REFRESHED') {
         console.log('[Auth] Token rafraîchi')
       }
-      if (event === 'SIGNED_OUT' || event === 'USER_DELETED') {
+      if (event === 'SIGNED_OUT') {
         setUser(null)
         setOrganization(null)
         sessionStorage.clear()
