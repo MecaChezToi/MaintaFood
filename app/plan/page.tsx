@@ -131,6 +131,7 @@ function EquipmentDetailModal({
   onUploadFiles,
   onUpdateMaintenance,
   onDelete,
+  onArchive,
 }: {
   equipment: Equipment
   canManage: boolean
@@ -142,6 +143,7 @@ function EquipmentDetailModal({
   onUploadFiles: (equipment: Equipment, files: File[]) => Promise<void>
   onUpdateMaintenance: (equipment: Equipment, updates: Partial<Equipment>) => Promise<void>
   onDelete?: (equipment: Equipment) => Promise<void>
+  onArchive?: (equipment: Equipment) => Promise<void>
 }) {
   const [parts, setParts] = useState<Part[]>([])
   const [allParts, setAllParts] = useState<Part[]>([])
@@ -260,7 +262,7 @@ function EquipmentDetailModal({
           <button className="btn btn-ghost btn-sm" onClick={onClose}>Fermer</button>
         </div>
 
-        <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 14, overflowY: 'auto', flex: 1, minHeight: 0 }}>
+        <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 14, overflowY: 'auto', flex: '1 1 0', minHeight: 0, WebkitOverflowScrolling: 'touch' }}>
           <div style={{ background: 'var(--s3)', borderRadius: 10, padding: 14 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
               <span className="badge" style={{ background: `${statusCfg.color}18`, color: statusCfg.color }}>
@@ -477,6 +479,11 @@ function EquipmentDetailModal({
         </div>
 
         <div style={{ padding: '12px 20px', borderTop: '1px solid var(--b0)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+          {canManage && onArchive && (
+            <button onClick={() => onArchive(equipment)} style={{ padding: '7px 14px', background: 'rgba(245,158,11,.1)', border: '1px solid rgba(245,158,11,.25)', borderRadius: 6, color: '#f59e0b', cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>
+              📦 Archiver
+            </button>
+          )}
           {canManage && onDelete && (
             <button onClick={() => onDelete(equipment)} style={{ padding: '7px 14px', background: 'rgba(255,71,87,.1)', border: '1px solid rgba(255,71,87,.25)', borderRadius: 6, color: '#ff4757', cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>
               🗑 Supprimer
@@ -792,6 +799,8 @@ export default function PlanPage() {
   const { user } = useAuth()
   const router = useRouter()
   const { equipments, technicians, loading, reload } = useData()
+  const [localEq, setLocalEq] = useState<Equipment[]>([])
+  const displayEquipments = localEq.length > 0 ? localEq : equipments
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
   const [selected, setSelected] = useState<Equipment | null>(null)
   const [planMode, setPlanMode] = useState<'schema' | 'photo'>('schema')
@@ -803,7 +812,9 @@ export default function PlanPage() {
   const canManage = user?.role === 'admin' || user?.role === 'manager'
 
   const load = async () => {
-    await reload(true) // Force reload du DataStore
+    // Recharger uniquement les équipements — pas tout le DataStore
+    const eqs = await equipmentsApi.getAll()
+    setLocalEq(eqs)
   }
 
   const showToast = (message: string) => {
@@ -812,7 +823,7 @@ export default function PlanPage() {
   }
 
   const filtered = useMemo(() => (
-    statusFilter === 'all' ? equipments : equipments.filter(eq => eq.status === statusFilter)
+    statusFilter === 'all' ? displayEquipments : displayEquipments.filter(eq => eq.status === statusFilter)
   ), [equipments, statusFilter])
 
   const groupedByZone = useMemo(() => {
@@ -836,7 +847,7 @@ export default function PlanPage() {
 
   const handleAddEquipment = async (payload: Partial<Equipment>, files: File[]) => {
     setError(null)
-    const created = await equipmentsApi.create(payload)
+    const created = await equipmentsApi.create({ ...payload, organization_id: user.organization_id })
     if (!created) throw new Error('La machine n’a pas pu etre creee.')
     if (files.length > 0) {
       await Promise.all(files.map(file => filesApi.upload(`equipments/${created.id}`, file)))
@@ -856,11 +867,27 @@ export default function PlanPage() {
       created_by: user.id,
       priority: payload.priority,
       status: 'a_faire',
+      organization_id: user.organization_id,
     })
     if (!created) throw new Error('L’intervention n’a pas pu etre creee.')
     await auditApi.log(user.id, 'Intervention creee', payload.title, `Equipement: ${equipment.name}`)
     showToast('Intervention creee')
     router.push('/interventions')
+  }
+
+  const handleArchive = async (equipment: Equipment) => {
+    if (!confirm(`Archiver "${equipment.name}" ?
+
+La machine sera masquée mais ses données et interventions seront conservées.`)) return
+    try {
+      await equipmentsApi.update(equipment.id, { status: 'maintenance', color: '#4a4a4a', name: `[ARCHIVÉ] ${equipment.name}` })
+      setLocalEq(prev => (prev.length > 0 ? prev : equipments).map(e => e.id === equipment.id ? { ...e, status: 'maintenance' as any, name: `[ARCHIVÉ] ${equipment.name}` } : e))
+      setSelected(null)
+      showToast('Machine archivée')
+      auditApi.log(user!.id, 'Machine archivée', equipment.name, `Zone ${equipment.zone}`)
+    } catch (e: any) {
+      alert('Erreur : ' + (e.message || 'Archivage échoué'))
+    }
   }
 
   const handleDelete = async (equipment: Equipment) => {
@@ -871,7 +898,7 @@ Cette action est irréversible.`)) return
       const { supabase } = await import('@/lib/supabase')
       const { error } = await supabase.from('equipments').delete().eq('id', equipment.id)
       if (error) throw error
-      await reload(true)
+      setLocalEq(prev => (prev.length > 0 ? prev : equipments).filter(e => e.id !== equipment.id))
       setSelected(null)
       showToast('Machine supprimée')
       auditApi.log(user!.id, 'Machine supprimée', equipment.name, `Zone ${equipment.zone}`)
@@ -882,10 +909,11 @@ Cette action est irréversible.`)) return
 
   const handleStatusChange = async (equipment: Equipment, status: EqStatus) => {
     if (!canManage) return
-    await equipmentsApi.update(equipment.id, { status })
-    await auditApi.log(user.id, 'Statut equipement modifie', equipment.name, `→ ${EQ_STATUS_CONFIG[status].label}`)
-    await load()
+    // Optimiste — pas de rechargement
+    setLocalEq(prev => (prev.length > 0 ? prev : equipments).map(e => e.id === equipment.id ? { ...e, status } : e))
     setSelected(prev => prev ? { ...prev, status } : prev)
+    equipmentsApi.update(equipment.id, { status })
+    auditApi.log(user.id, 'Statut equipement modifie', equipment.name, `→ ${EQ_STATUS_CONFIG[status].label}`)
   }
 
   const handleLinkPart = async (equipment: Equipment, partId: string) => {
@@ -1122,6 +1150,7 @@ Cette action est irréversible.`)) return
           onUploadFiles={handleUploadEquipmentFiles}
           onUpdateMaintenance={handleUpdateMaintenance}
           onDelete={handleDelete}
+          onArchive={handleArchive}
         />
       )}
 

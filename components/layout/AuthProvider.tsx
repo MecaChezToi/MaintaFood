@@ -83,6 +83,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      // Nettoyer automatiquement si token expiré ou invalide
+      if (event === 'TOKEN_REFRESHED') {
+        console.log('[Auth] Token rafraîchi')
+      }
+      if (event === 'SIGNED_OUT' || event === 'USER_DELETED') {
+        setUser(null)
+        setOrganization(null)
+        sessionStorage.clear()
+        stopKeepAlive()
+        // Nettoyer localStorage des tokens expirés
+        Object.keys(localStorage).filter(k => k.startsWith('sb-')).forEach(k => localStorage.removeItem(k))
+        setLoading(false)
+        return
+      }
       setSession(session)
       if (session?.user) {
         await loadProfile(session.user.id, session.access_token)
@@ -95,13 +109,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setLoading(false)
     })
 
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
+    supabase.auth.getSession().then(async ({ data: { session }, error }) => {
+      if (error) {
+        // Token invalide ou expiré — nettoyer et laisser l'utilisateur se reconnecter
+        console.warn('[Auth] Session invalide, nettoyage...')
+        Object.keys(localStorage).filter(k => k.startsWith('sb-')).forEach(k => localStorage.removeItem(k))
+        sessionStorage.clear()
+        setLoading(false)
+        return
+      }
       if (session?.user) {
         setSession(session)
         await loadProfile(session.user.id, session.access_token)
       }
       setLoading(false)
-    }).catch(() => setLoading(false))
+    }).catch(() => {
+      // En cas d'erreur réseau, nettoyer quand même
+      Object.keys(localStorage).filter(k => k.startsWith('sb-')).forEach(k => localStorage.removeItem(k))
+      sessionStorage.clear()
+      setLoading(false)
+    })
 
     const t = setTimeout(() => setLoading(false), 4000)
 
