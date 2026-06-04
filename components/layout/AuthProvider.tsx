@@ -111,10 +111,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     supabase.auth.getSession().then(async ({ data: { session }, error }) => {
       if (error) {
-        // Token invalide ou expiré — nettoyer et laisser l'utilisateur se reconnecter
-        console.warn('[Auth] Session invalide, nettoyage...')
-        Object.keys(localStorage).filter(k => k.startsWith('sb-')).forEach(k => localStorage.removeItem(k))
-        sessionStorage.clear()
+        // Seulement nettoyer si c'est une erreur d'auth (pas réseau)
+        const isAuthError = error.message?.includes('invalid') || error.message?.includes('expired') || error.message?.includes('JWT')
+        if (isAuthError) {
+          console.warn('[Auth] Token invalide, nettoyage...')
+          Object.keys(localStorage).filter(k => k.startsWith('sb-')).forEach(k => localStorage.removeItem(k))
+          sessionStorage.clear()
+        }
         setLoading(false)
         return
       }
@@ -124,9 +127,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
       setLoading(false)
     }).catch(() => {
-      // En cas d'erreur réseau, nettoyer quand même
-      Object.keys(localStorage).filter(k => k.startsWith('sb-')).forEach(k => localStorage.removeItem(k))
-      sessionStorage.clear()
+      // Erreur réseau — NE PAS nettoyer, laisser le token en place
+      console.warn('[Auth] Erreur réseau — token conservé')
       setLoading(false)
     })
 
@@ -140,6 +142,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const signIn = async (email: string, password: string) => {
+    // Nettoyer l'ancien token avant de se connecter
+    Object.keys(localStorage).filter(k => k.startsWith('sb-')).forEach(k => localStorage.removeItem(k))
+    sessionStorage.clear()
     const { error } = await supabase.auth.signInWithPassword({ email, password })
     return { error: error?.message || null }
   }

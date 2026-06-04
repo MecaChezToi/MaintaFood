@@ -403,22 +403,24 @@ function EquipmentDetailModal({
                   <span>Aucun document sur cette machine</span>
                 </div>
               ) : (
-                <div className="grid-2">
-                  {equipmentFiles.map(file => (
-                    <a
-                      key={file.path}
-                      href={file.url}
-                      target="_blank"
-                      rel="noreferrer"
-                      style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'var(--s3)', border: '1px solid var(--b0)', borderRadius: 8, padding: 12, color: 'inherit', textDecoration: 'none' }}
-                    >
-                      <div style={{ fontSize: 20 }}>📎</div>
-                      <div style={{ minWidth: 0, flex: 1 }}>
-                        <div style={{ fontSize: 13, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{file.name}</div>
-                        <div style={{ fontSize: 10, color: 'var(--t2)', fontFamily: 'var(--font-mono)' }}>{fmtDT(file.created_at)} · {sizeLabel(file.size)}</div>
-                      </div>
-                    </a>
-                  ))}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 10 }}>
+                  {equipmentFiles.map(file => {
+                    const isImage = /\.(jpg|jpeg|png|gif|webp)$/i.test(file.name)
+                    return isImage ? (
+                      <a key={file.path} href={file.url} target="_blank" rel="noreferrer" style={{ display: 'block', borderRadius: 10, overflow: 'hidden', border: '1px solid var(--b0)', background: 'var(--s3)' }}>
+                        <img src={file.url} alt={file.name} style={{ width: '100%', aspectRatio: '4/3', objectFit: 'cover', display: 'block' }} onError={e => { (e.target as HTMLImageElement).style.display = 'none' }} />
+                        <div style={{ padding: '6px 8px', fontSize: 10, color: 'var(--t2)', fontFamily: 'var(--font-mono)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{file.name}</div>
+                      </a>
+                    ) : (
+                      <a key={file.path} href={file.url} target="_blank" rel="noreferrer" style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'var(--s3)', border: '1px solid var(--b0)', borderRadius: 8, padding: 12, color: 'inherit', textDecoration: 'none' }}>
+                        <div style={{ fontSize: 20 }}>📎</div>
+                        <div style={{ minWidth: 0, flex: 1 }}>
+                          <div style={{ fontSize: 13, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{file.name}</div>
+                          <div style={{ fontSize: 10, color: 'var(--t2)', fontFamily: 'var(--font-mono)' }}>{fmtDT(file.created_at)} · {sizeLabel(file.size)}</div>
+                        </div>
+                      </a>
+                    )
+                  })}
                 </div>
               )}
             </div>
