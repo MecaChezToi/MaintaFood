@@ -313,7 +313,7 @@ function NewIntModal({ equipments, technicians, user, onClose, onSave, error }: 
                 <label className="form-label">Technicien</label>
                 <select className="form-input" value={form.technician_id} onChange={e => s('technician_id', e.target.value)}>
                   <option value="">Non assigné</option>
-                  {technicians.map((tech: Profile) => <option key={tech.id} value={tech.id}>{tech.name}</option>)}
+                  {technicians.map((tech: Profile) => <option key={tech.id} value={tech.id}>{tech.name} ({tech.role})</option>)}
                 </select>
               </div>
             )}
@@ -380,6 +380,7 @@ export default function InterventionsPage() {
   if (!user) return null
 
   const isTech = user.role === 'technician'
+  const allUsers = [...technicians, ...(technicians.length === 0 ? [] : [])]
   const list = isTech ? interventions.filter(i => i.technician_id === user.id || i.created_by === user.id) : interventions
   const filtered = filter === 'all' ? list : list.filter(i => i.status === filter)
 

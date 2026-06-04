@@ -69,7 +69,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       setState({
         equipments,
         interventions,
-        technicians: (profiles as Profile[]).filter(p => p.role === 'technician'),
+        technicians: (profiles as Profile[]).filter(p => p.active !== false), // Tous les utilisateurs actifs
         parts,
         siteConfig,
         loading: false,
@@ -121,7 +121,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       setState({
         equipments: equipments as Equipment[],
         interventions: interventions as Intervention[],
-        technicians: (profiles as Profile[]).filter(p => p.role === 'technician'),
+        technicians: (profiles as Profile[]).filter(p => p.active !== false), // Tous les utilisateurs actifs
         parts: parts as Part[],
         siteConfig: siteConfig as SiteConfig | null,
         loading: false,
