@@ -262,7 +262,7 @@ function EquipmentDetailModal({
           <button className="btn btn-ghost btn-sm" onClick={onClose}>Fermer</button>
         </div>
 
-        <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 14, overflowY: 'scroll', overflowX: 'hidden', flex: 1, minHeight: 0 }}>
+        <div className="modal-body" style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 14 }}>
           <div style={{ background: 'var(--s3)', borderRadius: 10, padding: 14 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
               <span className="badge" style={{ background: `${statusCfg.color}18`, color: statusCfg.color }}>
@@ -567,7 +567,7 @@ function AddEquipmentModal({
           <button className="btn btn-ghost btn-sm" onClick={onClose}>Fermer</button>
         </div>
 
-        <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 12, overflowY: 'scroll', flex: 1, minHeight: 0 }}>
+        <div className="modal-body" style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 12 }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
             <label className="form-label">Nom *</label>
             <input className="form-input" value={form.name} onChange={e => setField('name', e.target.value)} placeholder="ex: Compresseur Atlas #4" />

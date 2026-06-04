@@ -329,11 +329,13 @@ input:-webkit-autofill:focus {
   overflow: hidden;
   animation: slideUp .22s ease;
 }
-/* Contenu scrollable à l'intérieur du modal */
-.modal-box > div:not(:first-child):not(:last-child) {
-  flex: 1;
+/* Classe dédiée pour le contenu scrollable */
+.modal-body {
+  flex: 1 1 0;
   min-height: 0;
   overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
 }
 @media (min-width: 769px) {
   .modal-overlay { align-items: center; padding: 20px; }
