@@ -245,7 +245,9 @@ export const photosApi = {
 }
 
 export const filesApi = {
-  list: async (folder: string) => {
+  list: async (folderRaw: string) => {
+    // Storage utilise "equipements" (fr) mais le code passe "equipments" (en)
+    const folder = folderRaw.replace('equipments/', 'equipements/')
     const { data, error } = await supabase.storage.from(STORAGE_BUCKET).list(folder, { limit: 100, sortBy: { column: 'created_at', order: 'desc' } })
     if (error) { console.warn('[Storage] list error:', error.message); return [] }
     const files = (data ?? []).filter((item: any) => item.name && !item.id?.endsWith('/'))
@@ -257,7 +259,8 @@ export const filesApi = {
     })
   },
   upload: async (folder: string, file: File) => {
-    const path = `${folder}/${Date.now()}-${sanitizeFileName(file.name)}`
+    const folderFixed = folder.replace('equipments/', 'equipements/')
+    const path = `${folderFixed}/${Date.now()}-${sanitizeFileName(file.name)}`
     const { error } = await supabase.storage.from(STORAGE_BUCKET).upload(path, file, { contentType: file.type, upsert: false })
     ensureNoError(error, `Upload fichier ${path}`)
     return { path, url: '' }
