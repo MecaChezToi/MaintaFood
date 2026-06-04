@@ -309,13 +309,15 @@ input:-webkit-autofill:focus {
 
 /* Modal overlay */
 .modal-overlay {
-  position: fixed; inset: 0; z-index: 200;
-  background: rgba(0,0,0,.8);
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  background: rgba(0,0,0,.85);
   backdrop-filter: blur(6px);
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 16px;
+  padding: 12px;
 }
 .modal-box {
   background: var(--s2);
@@ -323,20 +325,19 @@ input:-webkit-autofill:focus {
   border-radius: var(--r3);
   width: 100%;
   max-width: 640px;
-  height: 90dvh;
-  max-height: 90dvh;
+  height: calc(100dvh - 24px);
   display: flex;
   flex-direction: column;
   overflow: hidden;
   animation: slideUp .22s ease;
 }
-/* Classe dédiée pour le contenu scrollable */
 .modal-body {
   flex: 1 1 0 !important;
   min-height: 0 !important;
-  overflow-y: auto !important;
-  overflow-x: hidden;
-  -webkit-overflow-scrolling: touch;
+  overflow-y: scroll !important;
+  overflow-x: hidden !important;
+  -webkit-overflow-scrolling: touch !important;
+  overscroll-behavior: contain;
 }
 
 /* Separator */
