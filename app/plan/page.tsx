@@ -130,6 +130,7 @@ function EquipmentDetailModal({
   onUnlinkPart,
   onUploadFiles,
   onUpdateMaintenance,
+  onDelete,
 }: {
   equipment: Equipment
   canManage: boolean
@@ -140,6 +141,7 @@ function EquipmentDetailModal({
   onUnlinkPart: (equipment: Equipment, partId: string) => Promise<void>
   onUploadFiles: (equipment: Equipment, files: File[]) => Promise<void>
   onUpdateMaintenance: (equipment: Equipment, updates: Partial<Equipment>) => Promise<void>
+  onDelete?: (equipment: Equipment) => Promise<void>
 }) {
   const [parts, setParts] = useState<Part[]>([])
   const [allParts, setAllParts] = useState<Part[]>([])
@@ -461,11 +463,29 @@ function EquipmentDetailModal({
               )}
             </div>
           </div>
+
+          {/* QR Code section */}
+          <div className="card">
+            <div style={{ padding: '14px 18px 12px', borderBottom: '1px solid var(--b0)', fontSize: 15, fontWeight: 700 }}>
+              QR Code machine
+            </div>
+            <div style={{ padding: 14 }}>
+              <QRCodeDisplay equipment={equipment} />
+            </div>
+          </div>
+
         </div>
 
-        <div style={{ padding: '12px 20px', borderTop: '1px solid var(--b0)', display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
-          <button className="btn btn-ghost" onClick={onClose}>Fermer</button>
-          <button className="btn btn-primary" onClick={() => onCreateIntervention(equipment)}>Nouvelle intervention</button>
+        <div style={{ padding: '12px 20px', borderTop: '1px solid var(--b0)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+          {canManage && onDelete && (
+            <button onClick={() => onDelete(equipment)} style={{ padding: '7px 14px', background: 'rgba(255,71,87,.1)', border: '1px solid rgba(255,71,87,.25)', borderRadius: 6, color: '#ff4757', cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>
+              🗑 Supprimer
+            </button>
+          )}
+          <div style={{ display: 'flex', gap: 8, marginLeft: 'auto' }}>
+            <button className="btn btn-ghost" onClick={onClose}>Fermer</button>
+            <button className="btn btn-primary" onClick={() => onCreateIntervention(equipment)}>Nouvelle intervention</button>
+          </div>
         </div>
       </div>
     </div>
@@ -771,8 +791,7 @@ function NewInterventionModal({
 export default function PlanPage() {
   const { user } = useAuth()
   const router = useRouter()
-  const { equipments: allEquipments, technicians, loading, reload } = useData()
-  const [localEquipments, setLocalEquipments] = useState<Equipment[]>([])
+  const { equipments, technicians, loading, reload } = useData()
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
   const [selected, setSelected] = useState<Equipment | null>(null)
   const [planMode, setPlanMode] = useState<'schema' | 'photo'>('schema')
@@ -782,12 +801,9 @@ export default function PlanPage() {
   const [toast, setToast] = useState<string | null>(null)
 
   const canManage = user?.role === 'admin' || user?.role === 'manager'
-  // Utiliser les équipements locaux si disponibles (après modification), sinon DataStore
-  const equipments = localEquipments.length > 0 ? localEquipments : allEquipments
 
   const load = async () => {
-    const eqs = await equipmentsApi.getAll()
-    setLocalEquipments(eqs)
+    await reload(true) // Force reload du DataStore
   }
 
   const showToast = (message: string) => {
@@ -845,6 +861,23 @@ export default function PlanPage() {
     await auditApi.log(user.id, 'Intervention creee', payload.title, `Equipement: ${equipment.name}`)
     showToast('Intervention creee')
     router.push('/interventions')
+  }
+
+  const handleDelete = async (equipment: Equipment) => {
+    if (!confirm(`Supprimer "${equipment.name}" ?
+
+Cette action est irréversible.`)) return
+    try {
+      const { supabase } = await import('@/lib/supabase')
+      const { error } = await supabase.from('equipments').delete().eq('id', equipment.id)
+      if (error) throw error
+      await reload(true)
+      setSelected(null)
+      showToast('Machine supprimée')
+      auditApi.log(user!.id, 'Machine supprimée', equipment.name, `Zone ${equipment.zone}`)
+    } catch (e: any) {
+      alert('Erreur : ' + (e.message || 'Suppression échouée'))
+    }
   }
 
   const handleStatusChange = async (equipment: Equipment, status: EqStatus) => {
@@ -1088,6 +1121,7 @@ export default function PlanPage() {
           onUnlinkPart={handleUnlinkPart}
           onUploadFiles={handleUploadEquipmentFiles}
           onUpdateMaintenance={handleUpdateMaintenance}
+          onDelete={handleDelete}
         />
       )}
 
