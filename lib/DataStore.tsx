@@ -20,6 +20,7 @@ interface DataContextType extends DataState {
   reloadInterventions: () => Promise<void>
   updateIntervention: (id: string, updates: Partial<Intervention>) => void
   addIntervention: (interv: Intervention) => void
+  updateEquipment: (id: string, updates: Partial<Equipment>) => void
 }
 
 const DataContext = createContext<DataContextType>({
@@ -29,6 +30,7 @@ const DataContext = createContext<DataContextType>({
   reloadInterventions: async () => {},
   updateIntervention: () => {},
   addIntervention: () => {},
+  updateEquipment: () => {},
 })
 
 const CACHE_TTL = 5 * 60 * 1000
@@ -101,6 +103,13 @@ export function DataProvider({ children }: { children: ReactNode }) {
     setState(s => ({ ...s, interventions: [interv, ...s.interventions] }))
   }, [])
 
+  const updateEquipment = useCallback((id: string, updates: Partial<Equipment>) => {
+    setState(s => ({
+      ...s,
+      equipments: s.equipments.map(e => e.id === id ? { ...e, ...updates } : e)
+    }))
+  }, [])
+
   useEffect(() => {
     // Appel direct sans passer par reload pour éviter les dépendances cycliques
     loadingRef.current = true
@@ -138,7 +147,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
-    <DataContext.Provider value={{ ...state, reload, reloadInterventions, updateIntervention, addIntervention }}>
+    <DataContext.Provider value={{ ...state, reload, reloadInterventions, updateIntervention, addIntervention, updateEquipment }}>
       {children}
     </DataContext.Provider>
   )

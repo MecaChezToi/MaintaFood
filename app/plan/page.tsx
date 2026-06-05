@@ -930,7 +930,7 @@ function EditMachineModal({ equipment, onClose, onSave }: { equipment: Equipment
 export default function PlanPage() {
   const { user } = useAuth()
   const router = useRouter()
-  const { equipments, technicians, loading, reload, reloadInterventions } = useData()
+  const { equipments, technicians, loading, reload, reloadInterventions, updateEquipment } = useData()
   const [localEq, setLocalEq] = useState<Equipment[]>([])
   const displayEquipments = localEq.length > 0 ? localEq : equipments
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
@@ -1053,6 +1053,8 @@ Cette action est irréversible.`)) return
     try {
       const updated = await equipmentsApi.update(equipment.id, { status })
       if (!updated) throw new Error('Pas de retour Supabase')
+      // Mettre à jour le DataStore aussi pour persister entre navigations
+      updateEquipment(equipment.id, { status })
       auditApi.log(user.id, 'Statut equipement modifie', equipment.name, `→ ${EQ_STATUS_CONFIG[status].label}`)
       showToast(`Statut → ${EQ_STATUS_CONFIG[status].label}`)
     } catch (e: any) {
