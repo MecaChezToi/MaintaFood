@@ -1293,6 +1293,20 @@ Cette action est irréversible.`)) return
         />
       )}
 
+      {editMachine && (
+        <EditMachineModal
+          equipment={editMachine}
+          onClose={() => setEditMachine(null)}
+          onSave={async (updates) => {
+            await equipmentsApi.update(editMachine.id, updates)
+            setLocalEq(prev => (prev.length > 0 ? prev : equipments).map(e => e.id === editMachine.id ? { ...e, ...updates } : e))
+            setEditMachine(null)
+            showToast('Machine mise à jour ✓')
+            auditApi.log(user!.id, 'Machine modifiée', editMachine.name, '')
+          }}
+        />
+      )}
+
       {showAddMachine && (
         <AddEquipmentModal
           error={error}
