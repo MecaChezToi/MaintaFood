@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import AppLayout from '@/components/layout/AppLayout'
 import { useAuth } from '@/components/layout/AuthProvider'
-import { profilesApi, interventionsApi } from '@/lib/supabase'
+import { profilesApi, interventionsApi, supabase } from '@/lib/supabase'
 import type { Profile, Intervention } from '@/types'
 import { ROLE_CONFIG } from '@/types'
 
@@ -32,7 +32,9 @@ export default function UsersPage() {
     setCreateError(null)
     setCreating(true)
     try {
-      const token = session?.access_token
+      // Récupérer le token frais directement depuis Supabase
+      const { data: { session: freshSession } } = await supabase.auth.getSession()
+      const token = freshSession?.access_token || session?.access_token
       if (!token) throw new Error('Session manquante, reconnectez-vous.')
 
       const res = await fetch('/api/admin/users', {

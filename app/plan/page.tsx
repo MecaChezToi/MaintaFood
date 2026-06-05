@@ -1047,11 +1047,20 @@ Cette action est irréversible.`)) return
 
   const handleStatusChange = async (equipment: Equipment, status: EqStatus) => {
     if (!canManage) return
-    // Optimiste — pas de rechargement
+    // Mise à jour optimiste locale
     setLocalEq(prev => (prev.length > 0 ? prev : equipments).map(e => e.id === equipment.id ? { ...e, status } : e))
     setSelected(prev => prev ? { ...prev, status } : prev)
-    equipmentsApi.update(equipment.id, { status })
-    auditApi.log(user.id, 'Statut equipement modifie', equipment.name, `→ ${EQ_STATUS_CONFIG[status].label}`)
+    // Attendre la confirmation Supabase
+    try {
+      await equipmentsApi.update(equipment.id, { status })
+      auditApi.log(user.id, 'Statut equipement modifie', equipment.name, `→ ${EQ_STATUS_CONFIG[status].label}`)
+    } catch (e) {
+      // Rollback si échec
+      console.error('[Plan] Erreur mise à jour statut:', e)
+      setLocalEq(prev => (prev.length > 0 ? prev : equipments).map(e => e.id === equipment.id ? { ...e, status: equipment.status } : e))
+      setSelected(prev => prev ? { ...prev, status: equipment.status } : prev)
+      showToast('Erreur — statut non sauvegardé')
+    }
   }
 
   const handleLinkPart = async (equipment: Equipment, partId: string) => {

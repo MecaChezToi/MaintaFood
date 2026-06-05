@@ -19,43 +19,6 @@ const AuthContext = createContext<AuthContextType>({
   signOut: async () => {},
 })
 
-// Nettoyer tous les tokens Supabase
-const clearAllTokens = () => {
-  try {
-    Object.keys(localStorage).filter(k => k.startsWith('sb-')).forEach(k => localStorage.removeItem(k))
-    sessionStorage.clear()
-  } catch {}
-}
-
-// Vérifier si un token est expiré
-const isTokenExpired = (token: string): boolean => {
-  try {
-    const payload = JSON.parse(atob(token.split('.')[1]))
-    return payload.exp * 1000 < Date.now()
-  } catch {
-    return true
-  }
-}
-
-// Vérifier et nettoyer les tokens expirés au démarrage
-const checkAndCleanExpiredTokens = () => {
-  try {
-    const keys = Object.keys(localStorage).filter(k => k.startsWith('sb-') && k.endsWith('-auth-token'))
-    for (const key of keys) {
-      const raw = localStorage.getItem(key)
-      if (!raw) continue
-      const data = JSON.parse(raw)
-      const accessToken = data?.access_token
-      if (accessToken && isTokenExpired(accessToken)) {
-        console.log('[Auth] Token expiré détecté — nettoyage automatique')
-        clearAllTokens()
-        return true // token était expiré
-      }
-    }
-  } catch {}
-  return false
-}
-
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<Profile | null>(null)
   const [organization, setOrganization] = useState<Organization | null>(null)
@@ -63,11 +26,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true)
   const keepAliveRef = useRef<NodeJS.Timeout | null>(null)
 
+  // ─── Keep-alive : ping toutes les 4 min ──────────────────
   const startKeepAlive = () => {
     if (keepAliveRef.current) clearInterval(keepAliveRef.current)
-    keepAliveRef.current = setInterval(() => {
+    keepAliveRef.current = setInterval(async () => {
+      // Ping pour garder la connexion active
       supabase.from('profiles').select('id').limit(1).then(() => {}, () => {})
-    }, 4 * 60 * 1000)
+      // Forcer le rafraîchissement du token toutes les 50 minutes
+      const { data: { session: currentSession } } = await supabase.auth.getSession()
+      if (currentSession) {
+        const exp = currentSession.expires_at || 0
+        const now = Math.floor(Date.now() / 1000)
+        // Rafraîchir si le token expire dans moins de 15 minutes
+        if (exp - now < 15 * 60) {
+          console.log('[Auth] Token proche expiration — rafraîchissement...')
+          const { error } = await supabase.auth.refreshSession()
+          if (error) {
+            console.warn('[Auth] Échec rafraîchissement — nettoyage')
+            clearAllTokens()
+          } else {
+            console.log('[Auth] ✅ Token rafraîchi')
+          }
+        }
+      }
+    }, 4 * 60 * 1000) // toutes les 4 minutes
   }
 
   const stopKeepAlive = () => {
@@ -78,6 +60,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   const loadProfile = async (userId: string, accessToken: string) => {
+    // Cache immédiat
     try {
       const cached = sessionStorage.getItem(`profile:${userId}`)
       if (cached) setUser(JSON.parse(cached))
@@ -95,9 +78,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           sessionStorage.setItem(`org:${userId}`, JSON.stringify(org))
           setOrganization(org)
         }
-        startKeepAlive()
+        startKeepAlive() // Démarrer le keep-alive dès que connecté
         return
       }
+      // Profil manquant
       const res = await fetch('/api/profile/ensure', {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${accessToken}` },
@@ -116,20 +100,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   useEffect(() => {
-    // Nettoyer les tokens expirés dès le démarrage
-    checkAndCleanExpiredTokens()
-
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      // Nettoyer automatiquement si token expiré ou invalide
+      if (event === 'TOKEN_REFRESHED') {
+        console.log('[Auth] Token rafraîchi')
+      }
       if (event === 'SIGNED_OUT') {
         setUser(null)
         setOrganization(null)
-        clearAllTokens()
+        sessionStorage.clear()
         stopKeepAlive()
+        // Nettoyer localStorage des tokens expirés
+        Object.keys(localStorage).filter(k => k.startsWith('sb-')).forEach(k => localStorage.removeItem(k))
         setLoading(false)
         return
-      }
-      if (event === 'TOKEN_REFRESHED') {
-        console.log('[Auth] ✅ Token rafraîchi')
       }
       setSession(session)
       if (session?.user) {
@@ -145,8 +129,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     supabase.auth.getSession().then(async ({ data: { session }, error }) => {
       if (error) {
-        console.warn('[Auth] Erreur session:', error.message)
-        clearAllTokens()
+        // Token invalide ou expiré — nettoyer et laisser l'utilisateur se reconnecter
+        console.warn('[Auth] Session invalide, nettoyage...')
+        Object.keys(localStorage).filter(k => k.startsWith('sb-')).forEach(k => localStorage.removeItem(k))
+        sessionStorage.clear()
         setLoading(false)
         return
       }
@@ -156,7 +142,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
       setLoading(false)
     }).catch(() => {
-      // Erreur réseau — conserver le token
+      // En cas d'erreur réseau, nettoyer quand même
+      Object.keys(localStorage).filter(k => k.startsWith('sb-')).forEach(k => localStorage.removeItem(k))
+      sessionStorage.clear()
       setLoading(false)
     })
 
@@ -170,8 +158,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const signIn = async (email: string, password: string) => {
-    // Toujours nettoyer avant de se connecter
-    clearAllTokens()
     const { error } = await supabase.auth.signInWithPassword({ email, password })
     return { error: error?.message || null }
   }
@@ -182,7 +168,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null)
     setOrganization(null)
     setSession(null)
-    clearAllTokens()
+    sessionStorage.clear()
   }
 
   return (
