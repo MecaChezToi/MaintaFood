@@ -2,7 +2,7 @@ import { createClient } from '@supabase/supabase-js'
 import type {
   Profile, Organization, Equipment, Part, Intervention,
   InterventionComment, InterventionPhoto, InterventionPart,
-  AuditLog, SiteConfig
+  AuditLog, SiteConfig, PreventivePlan, PreventiveRecord, PreventiveUpcoming
 } from '@/types'
 
 const STORAGE_BUCKET = 'intervention-photos'
@@ -293,6 +293,82 @@ export const siteConfigApi = {
   update: async (updates: Partial<SiteConfig>): Promise<void> => {
     const { error } = await supabase.from('site_config').update(updates).eq('id', 1)
     ensureNoError(error, 'Mise a jour configuration site')
+  },
+}
+
+// ─── MAINTENANCE PRÉVENTIVE ─────────────────────────────────
+export const preventiveApi = {
+  // Plans préventifs d'un équipement
+  getPlans: async (equipmentId?: string): Promise<PreventivePlan[]> => {
+    let query = supabase
+      .from('preventive_plans')
+      .select('*, equipment:equipments(id,name,zone,location)')
+      .eq('active', true)
+      .order('next_due_at')
+    if (equipmentId) query = query.eq('equipment_id', equipmentId)
+    const { data } = await query
+    return data ?? []
+  },
+
+  // Vue des maintenances à venir
+  getUpcoming: async (days = 90): Promise<PreventiveUpcoming[]> => {
+    const { data } = await supabase
+      .from('preventive_upcoming')
+      .select('*')
+      .lte('next_due_at', new Date(Date.now() + days * 86400000).toISOString().split('T')[0])
+      .order('next_due_at')
+    return data ?? []
+  },
+
+  // Créer un plan préventif
+  createPlan: async (plan: Partial<PreventivePlan>): Promise<PreventivePlan | null> => {
+    const { data, error } = await supabase
+      .from('preventive_plans').insert(plan).select().single()
+    ensureNoError(error, 'Création plan préventif')
+    return data
+  },
+
+  // Modifier un plan
+  updatePlan: async (id: string, updates: Partial<PreventivePlan>): Promise<void> => {
+    const { error } = await supabase
+      .from('preventive_plans').update(updates).eq('id', id)
+    ensureNoError(error, 'Mise à jour plan préventif')
+  },
+
+  // Supprimer (désactiver) un plan
+  deletePlan: async (id: string): Promise<void> => {
+    const { error } = await supabase
+      .from('preventive_plans').update({ active: false }).eq('id', id)
+    ensureNoError(error, 'Suppression plan préventif')
+  },
+
+  // Enregistrer une maintenance faite
+  record: async (rec: {
+    plan_id: string
+    equipment_id: string
+    organization_id: string
+    done_by: string
+    done_at?: string
+    duration_min?: number
+    notes?: string
+  }): Promise<PreventiveRecord | null> => {
+    const { data, error } = await supabase
+      .from('preventive_records')
+      .insert({ ...rec, done_at: rec.done_at || new Date().toISOString().split('T')[0] })
+      .select().single()
+    ensureNoError(error, 'Enregistrement maintenance')
+    return data
+  },
+
+  // Historique des maintenances d'un équipement
+  getHistory: async (equipmentId: string): Promise<PreventiveRecord[]> => {
+    const { data } = await supabase
+      .from('preventive_records')
+      .select('*, plan:preventive_plans(name), technician:profiles(id,name,avatar,color)')
+      .eq('equipment_id', equipmentId)
+      .order('done_at', { ascending: false })
+      .limit(50)
+    return data ?? []
   },
 }
 

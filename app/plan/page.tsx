@@ -4,10 +4,10 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import AppLayout from '@/components/layout/AppLayout'
 import { useAuth } from '@/components/layout/AuthProvider'
-import { auditApi, equipmentsApi, filesApi, interventionsApi, partsApi } from '@/lib/supabase'
+import { auditApi, equipmentsApi, filesApi, interventionsApi, partsApi, preventiveApi } from '@/lib/supabase'
 import { useData } from '@/lib/DataStore'
-import type { Equipment, EqStatus, Part, Priority, Profile } from '@/types'
-import { EQ_STATUS_CONFIG, PRIORITY_CONFIG } from '@/types'
+import type { Equipment, EqStatus, Part, Priority, Profile, PreventivePlan } from '@/types'
+import { EQ_STATUS_CONFIG, PRIORITY_CONFIG, URGENCY_CONFIG as UC } from '@/types'
 
 type ZoneKey = 'A' | 'B' | 'C' | 'D'
 type StatusFilter = 'all' | EqStatus
@@ -160,6 +160,10 @@ function EquipmentDetailModal({
   const [intervalDays, setIntervalDays] = useState<number>(Number(equipment.preventive_interval_days || 0))
   const [tasksText, setTasksText] = useState<string>((equipment.preventive_tasks || []).join(', '))
   const [nextPreventive, setNextPreventive] = useState<string>(equipment.next_preventive ? String(equipment.next_preventive) : '')
+  const [plans, setPlans] = useState<PreventivePlan[]>([])
+  const [plansLoading, setPlansLoading] = useState(false)
+  const [showAddPlan, setShowAddPlan] = useState(false)
+  const [newPlan, setNewPlan] = useState({ name: '', interval_days: 90, estimated_minutes: 30, requires_stop: false, description: '' })
   const statusCfg = EQ_STATUS_CONFIG[equipment.status]
 
   const loadParts = async () => {
@@ -190,6 +194,9 @@ function EquipmentDetailModal({
 
   useEffect(() => {
     Promise.all([loadParts(), loadFiles()]).catch(() => undefined)
+    // Charger les plans préventifs
+    setPlansLoading(true)
+    preventiveApi.getPlans(equipment.id).then(setPlans).finally(() => setPlansLoading(false))
   }, [equipment.id])
 
   const availableParts = useMemo(() => (
@@ -429,43 +436,103 @@ function EquipmentDetailModal({
           </div>
 
           <div className="card">
-            <div style={{ padding: '14px 18px 12px', borderBottom: '1px solid var(--b0)', fontSize: 15, fontWeight: 700 }}>
-              Maintenance preventive
+            <div style={{ padding: '14px 18px 12px', borderBottom: '1px solid var(--b0)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ fontSize: 15, fontWeight: 700 }}>Maintenance préventive</span>
+              {canManage && (
+                <button onClick={() => setShowAddPlan(true)} className="btn btn-primary btn-sm">+ Ajouter</button>
+              )}
             </div>
             <div style={{ padding: 14, display: 'flex', flexDirection: 'column', gap: 10 }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-                  <label className="form-label">Dans (jours)</label>
-                  <input
-                    className="form-input"
-                    type="number"
-                    value={intervalDays}
-                    onChange={e => {
-                      const v = Math.max(0, parseInt(e.target.value) || 0)
-                      setIntervalDays(v)
-                      if (v > 0) setNextPreventive(addDays(v))
-                    }}
-                  />
+              {plansLoading && <div style={{ color: 'var(--t2)', fontSize: 12, textAlign: 'center' }}>Chargement...</div>}
+
+              {!plansLoading && plans.length === 0 && (
+                <div style={{ textAlign: 'center', padding: '16px 0', color: 'var(--t3)', fontSize: 13 }}>
+                  <div style={{ fontSize: 24, marginBottom: 6 }}>🔧</div>
+                  Aucune tâche préventive définie
                 </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-                  <label className="form-label">Date prochaine</label>
-                  <input className="form-input" type="date" value={nextPreventive} onChange={e => setNextPreventive(e.target.value)} />
+              )}
+
+              {plans.map(plan => {
+                const urgency = !plan.next_due_at ? 'ok'
+                  : new Date(plan.next_due_at) < new Date() ? 'overdue'
+                  : new Date(plan.next_due_at) <= new Date(Date.now() + 7*86400000) ? 'urgent'
+                  : new Date(plan.next_due_at) <= new Date(Date.now() + 30*86400000) ? 'soon' : 'ok'
+                const uc = UC[urgency as keyof typeof UC]
+                return (
+                  <div key={plan.id} style={{ background: 'var(--s3)', borderRadius: 8, padding: 12, border: `1px solid ${uc.color}33` }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
+                      <div style={{ fontWeight: 600, fontSize: 13 }}>{plan.name}</div>
+                      <span style={{ fontSize: 10, padding: '2px 7px', borderRadius: 10, background: uc.bg, color: uc.color, flexShrink: 0 }}>{uc.label}</span>
+                    </div>
+                    {plan.description && <div style={{ fontSize: 12, color: 'var(--t2)', marginBottom: 6 }}>{plan.description}</div>}
+                    <div style={{ display: 'flex', gap: 12, fontSize: 11, color: 'var(--t2)', flexWrap: 'wrap' }}>
+                      <span>🔄 Tous les {plan.interval_days}j</span>
+                      {plan.estimated_minutes && <span>⏱ {plan.estimated_minutes} min</span>}
+                      {plan.requires_stop && <span style={{ color: '#f59e0b' }}>⚠️ Arrêt requis</span>}
+                      <span>📅 Prochaine : <strong style={{ color: uc.color }}>{plan.next_due_at ? fmt(plan.next_due_at) : '—'}</strong></span>
+                      {plan.last_done_at && <span>✅ Dernière : {fmt(plan.last_done_at)}</span>}
+                    </div>
+                    {canManage && (
+                      <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
+                        <button
+                          onClick={async () => {
+                            if (!confirm('Supprimer cette tâche ?')) return
+                            await preventiveApi.deletePlan(plan.id)
+                            setPlans(prev => prev.filter(p => p.id !== plan.id))
+                          }}
+                          style={{ fontSize: 11, padding: '3px 8px', background: 'rgba(255,71,87,.1)', border: '1px solid rgba(255,71,87,.2)', borderRadius: 4, color: '#ff4757', cursor: 'pointer' }}
+                        >
+                          Supprimer
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+
+              {/* Formulaire ajout plan */}
+              {showAddPlan && (
+                <div style={{ background: 'var(--s3)', borderRadius: 8, padding: 12, border: '1px solid var(--b1)', display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  <div style={{ fontSize: 13, fontWeight: 600 }}>Nouvelle tâche préventive</div>
+                  <input className="form-input" placeholder="Nom de la tâche *" value={newPlan.name} onChange={e => setNewPlan(p => ({ ...p, name: e.target.value }))} />
+                  <textarea className="form-input" placeholder="Description (optionnel)" value={newPlan.description} onChange={e => setNewPlan(p => ({ ...p, description: e.target.value }))} style={{ minHeight: 60 }} />
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                      <label className="form-label">Fréquence (jours)</label>
+                      <input className="form-input" type="number" value={newPlan.interval_days} onChange={e => setNewPlan(p => ({ ...p, interval_days: parseInt(e.target.value) || 90 }))} />
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                      <label className="form-label">Durée estimée (min)</label>
+                      <input className="form-input" type="number" value={newPlan.estimated_minutes} onChange={e => setNewPlan(p => ({ ...p, estimated_minutes: parseInt(e.target.value) || 30 }))} />
+                    </div>
+                  </div>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 13 }}>
+                    <input type="checkbox" checked={newPlan.requires_stop} onChange={e => setNewPlan(p => ({ ...p, requires_stop: e.target.checked }))} style={{ accentColor: '#f59e0b' }} />
+                    Arrêt production requis
+                  </label>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <button className="btn btn-ghost btn-sm" onClick={() => setShowAddPlan(false)}>Annuler</button>
+                    <button
+                      className="btn btn-primary btn-sm"
+                      disabled={!newPlan.name.trim()}
+                      onClick={async () => {
+                        const created = await preventiveApi.createPlan({
+                          ...newPlan,
+                          equipment_id: equipment.id,
+                          organization_id: (equipment as any).organization_id,
+                          active: true,
+                        })
+                        if (created) {
+                          setPlans(prev => [...prev, created])
+                          setNewPlan({ name: '', interval_days: 90, estimated_minutes: 30, requires_stop: false, description: '' })
+                          setShowAddPlan(false)
+                        }
+                      }}
+                    >
+                      ✓ Créer
+                    </button>
+                  </div>
                 </div>
-              </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-                <label className="form-label">Types (separes par virgules)</label>
-                <input className="form-input" value={tasksText} onChange={e => setTasksText(e.target.value)} placeholder="nettoyage, vidange, changement tapis" />
-              </div>
-
-              <div style={{ fontSize: 12, color: 'var(--t2)' }}>
-                Prochaine : <span style={{ color: 'var(--t1)', fontFamily: 'var(--font-mono)' }}>{nextPreventive ? fmt(nextPreventive) : '—'}</span>
-              </div>
-
-              {canManage && (
-                <button className="btn btn-primary" disabled={savingMaintenance} onClick={saveMaintenance}>
-                  {savingMaintenance ? 'Sauvegarde...' : '✓ Sauvegarder'}
-                </button>
               )}
             </div>
           </div>

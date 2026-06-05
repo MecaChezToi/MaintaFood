@@ -160,6 +160,59 @@ export interface AuditLog {
   user?: Profile
 }
 
+// ─── MAINTENANCE PRÉVENTIVE ─────────────────────────────────
+export type PreventiveUrgency = 'overdue' | 'urgent' | 'soon' | 'ok'
+
+export interface PreventivePlan {
+  id: string
+  organization_id: string
+  equipment_id: string
+  name: string
+  description?: string | null
+  interval_days: number
+  estimated_minutes?: number | null
+  requires_stop: boolean
+  last_done_at?: string | null
+  next_due_at?: string | null
+  active: boolean
+  created_at: string
+  updated_at: string
+  equipment?: Equipment
+}
+
+export interface PreventiveRecord {
+  id: string
+  organization_id: string
+  plan_id: string
+  equipment_id: string
+  done_by: string
+  done_at: string
+  duration_min?: number | null
+  notes?: string | null
+  photos?: string[] | null
+  created_at: string
+  plan?: PreventivePlan
+  equipment?: Equipment
+  technician?: Profile
+}
+
+export interface PreventiveUpcoming {
+  id: string
+  organization_id: string
+  equipment_id: string
+  equipment_name: string
+  equipment_zone: string
+  equipment_location: string
+  task_name: string
+  description?: string | null
+  interval_days: number
+  estimated_minutes?: number | null
+  requires_stop: boolean
+  next_due_at: string
+  last_done_at?: string | null
+  urgency: PreventiveUrgency
+}
+
 // ─── CONFIG SITE ────────────────────────────────────────────
 export interface SiteConfig {
   id: number
@@ -195,6 +248,13 @@ export const EQ_STATUS_CONFIG: Record<EqStatus, { label: string; color: string }
   ok:          { label: 'Opérationnel', color: '#3cb87a' },
   panne:       { label: 'En panne',     color: '#ef4444' },
   maintenance: { label: 'Maintenance',  color: '#f59e0b' },
+}
+
+export const URGENCY_CONFIG: Record<PreventiveUrgency, { label: string; color: string; bg: string }> = {
+  overdue: { label: 'En retard',    color: '#ef4444', bg: 'rgba(239,68,68,.12)' },
+  urgent:  { label: 'Urgent < 7j', color: '#f59e0b', bg: 'rgba(245,158,11,.12)' },
+  soon:    { label: 'Bientôt',      color: '#3c82e8', bg: 'rgba(60,130,232,.12)' },
+  ok:      { label: 'OK',           color: '#3cb87a', bg: 'rgba(60,184,122,.12)' },
 }
 
 export const PLAN_CONFIG: Record<string, { label: string; color: string; maxUsers: number; maxEquipments: number }> = {
