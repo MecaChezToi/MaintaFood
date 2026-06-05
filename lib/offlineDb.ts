@@ -196,19 +196,49 @@ export const pendingWrites = {
   },
 }
 
-// ─── DÉTECTION RÉSEAU ────────────────────────────────────────
+// ─── DÉTECTION RÉSEAU (iOS compatible) ───────────────────────
+let _isOnline = typeof navigator !== 'undefined' ? navigator.onLine : true
+const _listeners: Array<(online: boolean) => void> = []
+
+// Ping actif toutes les 10s pour détecter le réseau sur iOS
+async function pingNetwork(): Promise<boolean> {
+  try {
+    const res = await fetch('/api/ping', { method: 'HEAD', cache: 'no-store' })
+    return res.ok
+  } catch {
+    return false
+  }
+}
+
+if (typeof window !== 'undefined') {
+  // Events natifs (marche sur Android/desktop)
+  window.addEventListener('online', () => {
+    _isOnline = true
+    _listeners.forEach(cb => cb(true))
+  })
+  window.addEventListener('offline', () => {
+    _isOnline = false
+    _listeners.forEach(cb => cb(false))
+  })
+
+  // Ping actif toutes les 10s (iOS PWA)
+  setInterval(async () => {
+    const online = await pingNetwork()
+    if (online !== _isOnline) {
+      _isOnline = online
+      _listeners.forEach(cb => cb(online))
+    }
+  }, 10000)
+}
+
 export const networkStatus = {
-  isOnline: (): boolean => typeof navigator !== 'undefined' ? navigator.onLine : true,
+  isOnline: (): boolean => _isOnline,
 
   onChange: (cb: (online: boolean) => void) => {
-    if (typeof window === 'undefined') return () => {}
-    const onOnline = () => cb(true)
-    const onOffline = () => cb(false)
-    window.addEventListener('online', onOnline)
-    window.addEventListener('offline', onOffline)
+    _listeners.push(cb)
     return () => {
-      window.removeEventListener('online', onOnline)
-      window.removeEventListener('offline', onOffline)
+      const i = _listeners.indexOf(cb)
+      if (i > -1) _listeners.splice(i, 1)
     }
   },
 }
