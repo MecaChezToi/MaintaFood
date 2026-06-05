@@ -1038,7 +1038,7 @@ Cette action est irréversible.`)) return
               />
             )}
 
-          <svg viewBox="0 0 100 100" style={{ width: '100%', minHeight: planMode === 'photo' ? 0 : 420, position: planMode === 'photo' ? 'absolute' : 'relative', top: 0, left: 0, display: 'block', background: planMode === 'photo' ? 'transparent' : '#080909' }}>
+          <svg viewBox="0 0 100 100" style={{ width: '100%', minHeight: planMode === 'photo' ? 0 : 220, position: planMode === 'photo' ? 'absolute' : 'relative', top: 0, left: 0, display: 'block', background: planMode === 'photo' ? 'transparent' : '#080909' }}>
             {planMode === 'schema' && <>
             <rect width="100" height="100" fill="#080909" />
             <defs>
