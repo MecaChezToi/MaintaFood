@@ -1,5 +1,6 @@
 'use client'
 
+import { useState, useEffect, useRef } from 'react'
 import { useAuth } from '@/components/layout/AuthProvider'
 import { useData } from '@/lib/DataStore'
 import AppLayout from '@/components/layout/AppLayout'
@@ -87,6 +88,156 @@ function DonutChart({ segments }: { segments: { value: number; color: string; la
   )
 }
 
+// ── Conformity Ring ─────────────────────────────────────────
+function ConformityRing({ rate, done }: { rate: number; done: number }) {
+  const r = 38
+  const circ = 2 * Math.PI * r
+  const dash = (rate / 100) * circ
+  const color = rate >= 95 ? '#00c896' : rate >= 80 ? '#f59e0b' : '#ff4757'
+  const label = rate >= 95 ? 'Conforme IFS/BRC' : rate >= 80 ? 'À surveiller' : 'Sous le seuil'
+  return (
+    <div style={{
+      background: 'var(--s1)', border: `1px solid ${color}33`, borderRadius: 12,
+      padding: 18, display: 'flex', alignItems: 'center', gap: 18,
+      boxShadow: `0 0 24px ${color}18`,
+    }}>
+      <div style={{ position: 'relative', flexShrink: 0 }}>
+        <svg width={96} height={96} viewBox="0 0 96 96">
+          <circle cx={48} cy={48} r={r} fill="none" stroke="rgba(255,255,255,.05)" strokeWidth={10} />
+          <circle cx={48} cy={48} r={r} fill="none"
+            stroke={color} strokeWidth={10}
+            strokeDasharray={`${dash} ${circ - dash}`}
+            strokeLinecap="round"
+            style={{ transform: 'rotate(-90deg)', transformOrigin: '48px 48px', transition: 'all .6s ease' }}
+          />
+          <text x={48} y={44} textAnchor="middle" fill={color} fontSize={20} fontWeight={800} fontFamily="var(--font-mono)">{rate}%</text>
+          <text x={48} y={58} textAnchor="middle" fill="var(--t3)" fontSize={9} fontFamily="var(--font-mono)">CONFORM.</text>
+        </svg>
+      </div>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.8px', color, fontFamily: 'var(--font-mono)', marginBottom: 4 }}>
+          🛡️ Conformité IFS/BRC
+        </div>
+        <div style={{ fontSize: 22, fontWeight: 800, color, fontFamily: 'var(--font-mono)', lineHeight: 1, marginBottom: 6 }}>{rate}%</div>
+        <div style={{ fontSize: 11, color: 'var(--t2)', marginBottom: 8 }}>{label} · {done} rapport{done > 1 ? 's' : ''} signé{done > 1 ? 's' : ''}</div>
+        <div style={{ height: 5, background: 'rgba(255,255,255,.06)', borderRadius: 3, overflow: 'hidden' }}>
+          <div style={{ height: '100%', width: `${rate}%`, background: color, borderRadius: 3, transition: 'width .6s ease' }} />
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 3, fontSize: 9, color: 'var(--t3)', fontFamily: 'var(--font-mono)' }}>
+          <span>0%</span><span style={{ color: rate >= 95 ? color : 'var(--t3)' }}>Objectif 95%</span><span>100%</span>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── Equipment Carousel ──────────────────────────────────────
+function EquipmentCarousel({ equipments, interventions }: { equipments: Equipment[]; interventions: Intervention[] }) {
+  const [current, setCurrent] = useState(0)
+  const [paused, setPaused] = useState(false)
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  const eqs = equipments.slice(0, 12) // max 12 machines
+
+  useEffect(() => {
+    if (eqs.length <= 1 || paused) return
+    timerRef.current = setInterval(() => {
+      setCurrent(c => (c + 1) % eqs.length)
+    }, 4000)
+    return () => { if (timerRef.current) clearInterval(timerRef.current) }
+  }, [eqs.length, paused])
+
+  if (eqs.length === 0) return null
+
+  const eq = eqs[current]
+  const eqInts = interventions.filter(i => i.equipment_id === eq.id)
+
+  // KPIs calculés pour cette machine
+  const done = eqInts.filter(i => i.report_duration && i.report_duration > 0)
+  const mttrMin = done.length ? Math.round(done.reduce((s, i) => s + (i.report_duration || 0), 0) / done.length) : null
+  const mttrStr = mttrMin ? `${Math.floor(mttrMin / 60)}h${String(mttrMin % 60).padStart(2, '0')}` : '—'
+  const sortedDates = eqInts.map(i => new Date(i.created_at).getTime()).sort((a, b) => a - b)
+  let mtbfDays: number | null = null
+  if (sortedDates.length >= 2) {
+    const gaps = sortedDates.slice(1).map((t, i) => (t - sortedDates[i]) / 86400000)
+    mtbfDays = Math.round(gaps.reduce((s, g) => s + g, 0) / gaps.length)
+  }
+  const open = eqInts.filter(i => !['termine','valide'].includes(i.status))
+  const late = open.filter(i => (Date.now() - new Date(i.created_at).getTime()) / 86400000 > 7)
+  const totalDownMin = done.reduce((s, i) => s + (i.report_duration || 0), 0)
+  const dispo = Math.min(100, Math.round((1 - totalDownMin / (90 * 24 * 60)) * 1000) / 10)
+  const dispoColor = dispo >= 98 ? '#00c896' : dispo >= 90 ? '#f59e0b' : '#ff4757'
+  const mtbfColor = !mtbfDays ? 'var(--t3)' : mtbfDays >= 60 ? '#00c896' : mtbfDays >= 30 ? '#f59e0b' : '#ff4757'
+
+  const statusColors: Record<string, string> = { ok: '#00c896', maintenance: '#f59e0b', panne: '#ff4757', inactif: '#7a8599' }
+  const statusLabels: Record<string, string> = { ok: 'Opérationnel', maintenance: 'Maintenance', panne: 'En panne', inactif: 'Inactif' }
+  const sc = statusColors[eq.status] || 'var(--t3)'
+
+  return (
+    <div style={{ background: 'var(--s1)', border: '1px solid var(--b0)', borderRadius: 12, overflow: 'hidden', marginBottom: 16 }}
+      onMouseEnter={() => setPaused(true)}
+      onMouseLeave={() => setPaused(false)}
+    >
+      {/* Header */}
+      <div style={{ padding: '12px 16px', borderBottom: '1px solid var(--b0)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span style={{ fontSize: 13, fontWeight: 700 }}>⚙️ Machines</span>
+          <span style={{ fontSize: 10, color: 'var(--t3)', fontFamily: 'var(--font-mono)' }}>{current + 1}/{eqs.length}</span>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <button onClick={() => { setCurrent(c => (c - 1 + eqs.length) % eqs.length); setPaused(true) }}
+            style={{ width: 24, height: 24, borderRadius: 6, border: '1px solid var(--b0)', background: 'transparent', color: 'var(--t2)', cursor: 'pointer', fontSize: 12, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>‹</button>
+          <button onClick={() => { setCurrent(c => (c + 1) % eqs.length); setPaused(true) }}
+            style={{ width: 24, height: 24, borderRadius: 6, border: '1px solid var(--b0)', background: 'transparent', color: 'var(--t2)', cursor: 'pointer', fontSize: 12, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>›</button>
+          <a href={`/eq/${eq.id}`} style={{ fontSize: 11, color: '#00c896', textDecoration: 'none', fontFamily: 'var(--font-mono)', marginLeft: 4 }}>Fiche →</a>
+        </div>
+      </div>
+
+      {/* Corps */}
+      <div style={{ padding: '14px 16px' }}>
+        {/* Nom + statut */}
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 12, gap: 8 }}>
+          <div>
+            <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--t1)', marginBottom: 2 }}>{eq.name}</div>
+            <div style={{ fontSize: 11, color: 'var(--t3)' }}>{eq.location || '—'}{eq.zone ? ` · Zone ${eq.zone}` : ''}</div>
+          </div>
+          <span style={{ fontSize: 10, padding: '3px 9px', borderRadius: 20, background: `${sc}18`, color: sc, fontWeight: 600, flexShrink: 0, border: `1px solid ${sc}33` }}>
+            {statusLabels[eq.status] || eq.status}
+          </span>
+        </div>
+
+        {/* KPIs grille */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5,1fr)', gap: 8, marginBottom: 10 }}>
+          {[
+            { label: 'MTBF', value: mtbfDays !== null ? `${mtbfDays}j` : '—', color: mtbfColor },
+            { label: 'MTTR', value: mttrStr, color: '#3c82e8' },
+            { label: 'OT ouverts', value: open.length, color: open.length > 0 ? '#f59e0b' : '#00c896' },
+            { label: 'En retard', value: late.length, color: late.length > 0 ? '#ff4757' : '#00c896' },
+            { label: 'Dispo.', value: `${dispo}%`, color: dispoColor },
+          ].map(({ label, value, color }) => (
+            <div key={label} style={{ background: 'rgba(255,255,255,.03)', borderRadius: 8, padding: '8px 10px', textAlign: 'center' }}>
+              <div style={{ fontSize: 15, fontWeight: 800, color, fontFamily: 'var(--font-mono)', lineHeight: 1 }}>{value}</div>
+              <div style={{ fontSize: 8, color: 'var(--t3)', marginTop: 4, textTransform: 'uppercase', letterSpacing: '.5px' }}>{label}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* Barre dispo + points navigation */}
+        <div style={{ height: 3, background: 'rgba(255,255,255,.05)', borderRadius: 2, overflow: 'hidden', marginBottom: 10 }}>
+          <div style={{ height: '100%', width: `${dispo}%`, background: dispoColor, borderRadius: 2, transition: 'width .4s ease' }} />
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'center', gap: 5 }}>
+          {eqs.map((_, i) => (
+            <button key={i} onClick={() => { setCurrent(i); setPaused(true) }}
+              style={{ width: i === current ? 16 : 5, height: 5, borderRadius: 3, border: 'none', cursor: 'pointer', padding: 0,
+                background: i === current ? '#00c896' : 'rgba(255,255,255,.12)', transition: 'all .25s ease' }} />
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ── KPI Card ────────────────────────────────────────────────
 function KpiCard({ value, label, sub, color, icon }: {
   value: string | number; label: string; sub?: string; color: string; icon: string
@@ -138,7 +289,7 @@ export default function DashboardPage() {
   // Valeur stock
   const stockVal = stock.reduce((s, p) => s + (p.qty * (p.price || 0)), 0)
 
-  // KPIs selon rôle
+  // KPIs selon rôle (Conformité affichée séparément pour admin)
   const kpis = isTech ? [
     { value: myOT.length, label: 'Mes interventions', sub: `${myOT.filter(i => i.status === 'a_faire').length} à faire`, color: '#00c896', icon: '🔧' },
     { value: myOT.filter(i => i.status === 'en_cours').length, label: 'En cours', sub: 'interventions actives', color: '#3c82e8', icon: '⚡' },
@@ -146,7 +297,6 @@ export default function DashboardPage() {
     { value: myOT.filter(i => i.report_verdict).length, label: 'Rapports signés', sub: 'documents PDF', color: '#f59e0b', icon: '📄' },
   ] : [
     { value: equipments.length, label: 'Équipements', sub: `${pannes.length} en panne`, color: '#00c896', icon: '⚙️' },
-    { value: conformRate ? `${conformRate}%` : '—', label: 'Conformité', sub: 'IFS/BRC · obj ≥95%', color: conformRate >= 90 ? '#00c896' : '#f59e0b', icon: '🛡️' },
     { value: interventions.filter(i => i.status === 'a_faire').length, label: 'OT en attente', sub: 'à planifier', color: '#f59e0b', icon: '📋' },
     { value: foodAlerts.length, label: 'Alertes alim.', sub: 'risques non clôturés', color: foodAlerts.length > 0 ? '#ff4757' : '#00c896', icon: '🚨' },
   ]
@@ -184,14 +334,25 @@ export default function DashboardPage() {
   return (
     <AppLayout>
       {/* Header */}
-      <div style={{ marginBottom: 20 }}>
-        <div style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-.3px', marginBottom: 2 }}>
-          Bonjour, {user.name.split(' ')[0]} 👋
+      <div style={{ marginBottom: 20, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
+        <div>
+          <div style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-.3px', marginBottom: 2 }}>
+            Bonjour, {user.name.split(' ')[0]} 👋
+          </div>
+          <div style={{ fontSize: 12.5, color: 'var(--t2)' }}>
+            {new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+            {siteConfig && <span style={{ marginLeft: 8, color: 'var(--t3)' }}>· {siteConfig.name}</span>}
+          </div>
         </div>
-        <div style={{ fontSize: 12.5, color: 'var(--t2)' }}>
-          {new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
-          {siteConfig && <span style={{ marginLeft: 8, color: 'var(--t3)' }}>· {siteConfig.name}</span>}
-        </div>
+        <a href="/interventions" style={{
+          display: 'inline-flex', alignItems: 'center', gap: 6,
+          background: '#00c896', color: '#000', borderRadius: 8,
+          padding: '9px 16px', fontWeight: 700, fontSize: 13,
+          textDecoration: 'none', flexShrink: 0,
+          boxShadow: '0 0 20px rgba(0,200,150,.25)',
+        }}>
+          <span style={{ fontSize: 16, lineHeight: 1 }}>+</span> Nouvel OT
+        </a>
       </div>
 
       {/* Alertes */}
@@ -208,15 +369,21 @@ export default function DashboardPage() {
 
       {/* KPI Cards */}
       {loading ? (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12, marginBottom: 20 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: isTech ? 'repeat(4,1fr)' : 'repeat(3,1fr) 1.4fr', gap: 12, marginBottom: 20 }}>
           {[1,2,3,4].map(i => (
             <div key={i} style={{ height: 96, borderRadius: 12, background: 'rgba(255,255,255,.02)', border: '1px solid var(--b0)', animation: 'pulse 1.5s infinite' }} />
           ))}
         </div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12, marginBottom: 20 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: isTech ? 'repeat(4,1fr)' : 'repeat(3,1fr) 1.4fr', gap: 12, marginBottom: 20 }}>
           {kpis.map((k, i) => <KpiCard key={i} {...k} />)}
+          {!isTech && <ConformityRing rate={conformRate} done={done.length} />}
         </div>
+      )}
+
+      {/* Carrousel machines */}
+      {!isTech && equipments.length > 0 && !loading && (
+        <EquipmentCarousel equipments={equipments} interventions={interventions} />
       )}
 
       {/* Ligne principale */}
@@ -231,9 +398,20 @@ export default function DashboardPage() {
           {loading ? (
             <div style={{ padding: 40, textAlign: 'center', color: 'var(--t2)', fontSize: 13 }}>Chargement…</div>
           ) : myOT.length === 0 ? (
-            <div style={{ padding: 40, textAlign: 'center', color: 'var(--t2)', opacity: .5 }}>
-              <div style={{ fontSize: 32, marginBottom: 8 }}>✅</div>
-              <div style={{ fontSize: 13 }}>Aucune intervention</div>
+            <div style={{ padding: '32px 24px', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
+              <svg width={56} height={56} viewBox="0 0 56 56" fill="none">
+                <circle cx={28} cy={28} r={27} stroke="rgba(0,200,150,.15)" strokeWidth={1.5} />
+                <rect x={16} y={18} width={24} height={4} rx={2} fill="rgba(0,200,150,.25)" />
+                <rect x={16} y={26} width={18} height={3} rx={1.5} fill="rgba(0,200,150,.15)" />
+                <rect x={16} y={33} width={20} height={3} rx={1.5} fill="rgba(0,200,150,.15)" />
+                <circle cx={38} cy={38} r={8} fill="rgba(0,200,150,.12)" stroke="rgba(0,200,150,.3)" strokeWidth={1.5} />
+                <text x={38} y={42} textAnchor="middle" fill="#00c896" fontSize={10} fontWeight={800}>+</text>
+              </svg>
+              <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--t1)' }}>Aucune intervention</div>
+              <div style={{ fontSize: 12, color: 'var(--t3)', maxWidth: 200, lineHeight: 1.5 }}>Créez votre premier ordre de travail pour commencer le suivi</div>
+              <a href="/interventions" style={{ marginTop: 4, display: 'inline-flex', alignItems: 'center', gap: 5, background: 'rgba(0,200,150,.12)', border: '1px solid rgba(0,200,150,.25)', color: '#00c896', borderRadius: 6, padding: '7px 14px', fontSize: 12, fontWeight: 600, textDecoration: 'none' }}>
+                + Créer un OT
+              </a>
             </div>
           ) : (
             myOT.slice(0, 7).map(i => {
@@ -275,7 +453,15 @@ export default function DashboardPage() {
                   <span style={{ fontSize: 10, color: 'var(--t2)', fontFamily: 'var(--font-mono)', marginLeft: 'auto' }}>6 mois</span>
                 </div>
                 {monthly.length === 0 ? (
-                  <div style={{ height: 120, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--t3)', fontSize: 12 }}>Aucune donnée</div>
+                  <div style={{ height: 120, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                    <svg width={40} height={40} viewBox="0 0 40 40" fill="none">
+                      <rect x={4} y={24} width={7} height={12} rx={2} fill="rgba(0,200,150,.2)" />
+                      <rect x={14} y={16} width={7} height={20} rx={2} fill="rgba(0,200,150,.15)" />
+                      <rect x={24} y={8} width={7} height={28} rx={2} fill="rgba(0,200,150,.1)" />
+                      <path d="M4 24 L17 16 L27 8" stroke="rgba(0,200,150,.3)" strokeWidth={1.5} strokeDasharray="2 2" />
+                    </svg>
+                    <div style={{ fontSize: 11, color: 'var(--t3)', textAlign: 'center', lineHeight: 1.4 }}>Les données s'afficheront<br />après vos premiers OT</div>
+                  </div>
                 ) : (
                   <>
                     <MiniBarChart data={monthly} />
@@ -295,7 +481,14 @@ export default function DashboardPage() {
               <div style={{ background: 'var(--s1)', border: '1px solid var(--b0)', borderRadius: 12, padding: 16 }}>
                 <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 12 }}>🥧 Répartition</div>
                 {myOT.length === 0 ? (
-                  <div style={{ height: 120, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--t3)', fontSize: 12 }}>Aucune donnée</div>
+                  <div style={{ height: 120, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                    <svg width={48} height={48} viewBox="0 0 48 48" fill="none">
+                      <circle cx={24} cy={24} r={18} stroke="rgba(255,255,255,.06)" strokeWidth={8} />
+                      <circle cx={24} cy={24} r={18} stroke="rgba(0,200,150,.15)" strokeWidth={8} strokeDasharray="28 85" strokeLinecap="round" style={{ transform: 'rotate(-90deg)', transformOrigin: '24px 24px' }} />
+                      <circle cx={24} cy={24} r={18} stroke="rgba(59,130,232,.12)" strokeWidth={8} strokeDasharray="20 85" strokeDashoffset="-28" strokeLinecap="round" style={{ transform: 'rotate(-90deg)', transformOrigin: '24px 24px' }} />
+                    </svg>
+                    <div style={{ fontSize: 11, color: 'var(--t3)', textAlign: 'center', lineHeight: 1.4 }}>Répartition disponible<br />dès le 1er OT créé</div>
+                  </div>
                 ) : (
                   <DonutChart segments={donutData} />
                 )}
@@ -329,7 +522,22 @@ export default function DashboardPage() {
           </div>
           <div style={{ padding: '8px 18px' }}>
             {upcoming.length === 0 ? (
-              <div style={{ padding: '20px 0', textAlign: 'center', color: 'var(--t3)', fontSize: 12 }}>Aucun équipement</div>
+              <div style={{ padding: '28px 18px', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
+                <svg width={44} height={44} viewBox="0 0 44 44" fill="none">
+                  <circle cx={22} cy={22} r={21} stroke="rgba(59,130,232,.15)" strokeWidth={1.5} />
+                  <rect x={13} y={12} width={18} height={20} rx={3} stroke="rgba(59,130,232,.3)" strokeWidth={1.5} fill="none" />
+                  <line x1={13} y1={18} x2={31} y2={18} stroke="rgba(59,130,232,.25)" strokeWidth={1} />
+                  <line x1={17} y1={12} x2={17} y2={9} stroke="rgba(59,130,232,.3)" strokeWidth={1.5} strokeLinecap="round" />
+                  <line x1={27} y1={12} x2={27} y2={9} stroke="rgba(59,130,232,.3)" strokeWidth={1.5} strokeLinecap="round" />
+                  <rect x={17} y={22} width={4} height={4} rx={1} fill="rgba(59,130,232,.3)" />
+                  <rect x={23} y={22} width={4} height={4} rx={1} fill="rgba(59,130,232,.2)" />
+                </svg>
+                <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--t1)' }}>Aucune inspection planifiée</div>
+                <div style={{ fontSize: 11, color: 'var(--t3)', maxWidth: 180, lineHeight: 1.5 }}>Ajoutez une date d'inspection à vos équipements</div>
+                <a href="/equipments" style={{ display: 'inline-flex', alignItems: 'center', gap: 5, background: 'rgba(59,130,232,.1)', border: '1px solid rgba(59,130,232,.25)', color: '#3c82e8', borderRadius: 6, padding: '7px 14px', fontSize: 12, fontWeight: 600, textDecoration: 'none' }}>
+                  Gérer les équipements
+                </a>
+              </div>
             ) : upcoming.map(eq => {
               const days = Math.floor((new Date(eq.next_inspection).getTime() - Date.now()) / 86400000)
               const overdue = days < 0

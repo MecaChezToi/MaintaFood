@@ -119,6 +119,94 @@ export default function EquipmentScanPage() {
           <div style={{ fontSize: 13, color: '#7a8599' }}>{equipment.location || '—'} · Zone {equipment.zone || '—'}</div>
         </div>
 
+        {/* ── KPI Maintenance ─────────────────────────────────── */}
+        {(() => {
+          const done = interventions.filter(i => i.signed_at && i.report_duration && i.report_duration > 0)
+          // MTTR = moyenne des durées de rapport (en minutes → heures)
+          const mttrMin = done.length ? Math.round(done.reduce((s, i) => s + (i.report_duration || 0), 0) / done.length) : null
+          const mttrStr = mttrMin ? `${Math.floor(mttrMin / 60)}h${String(mttrMin % 60).padStart(2, '0')}` : '—'
+
+          // MTBF = écart moyen entre interventions terminées (en jours)
+          const sortedDates = interventions
+            .filter(i => i.created_at)
+            .map(i => new Date(i.created_at).getTime())
+            .sort((a, b) => a - b)
+          let mtbfDays: number | null = null
+          if (sortedDates.length >= 2) {
+            const gaps = sortedDates.slice(1).map((t, i) => (t - sortedDates[i]) / 86400000)
+            mtbfDays = Math.round(gaps.reduce((s, g) => s + g, 0) / gaps.length)
+          }
+
+          // OT ouverts / en retard
+          const open = interventions.filter(i => !['termine', 'valide'].includes(i.status))
+          const late = open.filter(i => {
+            const age = (Date.now() - new Date(i.created_at).getTime()) / 86400000
+            return age > 7 // en retard si ouvert depuis > 7 jours
+          })
+
+          // Disponibilité = 1 - (temps en panne / période)
+          // On estime le temps en panne = somme des MTTR sur la fenêtre
+          const periodDays = 90
+          const totalDownMin = done.reduce((s, i) => s + (i.report_duration || 0), 0)
+          const dispo = Math.min(100, Math.round((1 - totalDownMin / (periodDays * 24 * 60)) * 1000) / 10)
+
+          const dispoColor = dispo >= 98 ? '#00c896' : dispo >= 90 ? '#f59e0b' : '#ff4757'
+          const mtbfColor = !mtbfDays ? '#3a4055' : mtbfDays >= 60 ? '#00c896' : mtbfDays >= 30 ? '#f59e0b' : '#ff4757'
+
+          return (
+            <div style={{ background: '#0f1012', border: '1px solid rgba(255,255,255,.08)', borderRadius: 12, padding: 14, marginBottom: 14 }}>
+              <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.8px', color: '#3a4055', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span>📊</span> Résumé maintenance
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginBottom: 12 }}>
+                {/* MTBF */}
+                <div style={{ background: 'rgba(255,255,255,.03)', borderRadius: 8, padding: '10px 12px' }}>
+                  <div style={{ fontSize: 9, color: '#3a4055', textTransform: 'uppercase', letterSpacing: '.6px', marginBottom: 4 }}>MTBF</div>
+                  <div style={{ fontSize: 18, fontWeight: 800, color: mtbfColor, fontFamily: 'monospace', lineHeight: 1 }}>
+                    {mtbfDays !== null ? `${mtbfDays}j` : '—'}
+                  </div>
+                  <div style={{ fontSize: 9, color: '#3a4055', marginTop: 3 }}>moy. entre pannes</div>
+                </div>
+                {/* MTTR */}
+                <div style={{ background: 'rgba(255,255,255,.03)', borderRadius: 8, padding: '10px 12px' }}>
+                  <div style={{ fontSize: 9, color: '#3a4055', textTransform: 'uppercase', letterSpacing: '.6px', marginBottom: 4 }}>MTTR</div>
+                  <div style={{ fontSize: 18, fontWeight: 800, color: '#3c82e8', fontFamily: 'monospace', lineHeight: 1 }}>{mttrStr}</div>
+                  <div style={{ fontSize: 9, color: '#3a4055', marginTop: 3 }}>moy. rép. dépann.</div>
+                </div>
+                {/* Disponibilité */}
+                <div style={{ background: 'rgba(255,255,255,.03)', borderRadius: 8, padding: '10px 12px' }}>
+                  <div style={{ fontSize: 9, color: '#3a4055', textTransform: 'uppercase', letterSpacing: '.6px', marginBottom: 4 }}>Dispo.</div>
+                  <div style={{ fontSize: 18, fontWeight: 800, color: dispoColor, fontFamily: 'monospace', lineHeight: 1 }}>{dispo}%</div>
+                  <div style={{ fontSize: 9, color: '#3a4055', marginTop: 3 }}>sur 90 jours</div>
+                </div>
+              </div>
+              {/* Barre disponibilité */}
+              <div style={{ marginBottom: 12 }}>
+                <div style={{ height: 5, background: 'rgba(255,255,255,.06)', borderRadius: 3, overflow: 'hidden' }}>
+                  <div style={{ height: '100%', width: `${dispo}%`, background: dispoColor, borderRadius: 3, transition: 'width .6s ease' }} />
+                </div>
+              </div>
+              {/* OT ouverts / en retard */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', background: open.length > 0 ? 'rgba(245,158,11,.06)' : 'rgba(255,255,255,.02)', border: `1px solid ${open.length > 0 ? 'rgba(245,158,11,.2)' : 'rgba(255,255,255,.06)'}`, borderRadius: 8 }}>
+                  <span style={{ fontSize: 14 }}>📋</span>
+                  <div>
+                    <div style={{ fontSize: 16, fontWeight: 800, color: open.length > 0 ? '#f59e0b' : '#00c896', fontFamily: 'monospace', lineHeight: 1 }}>{open.length}</div>
+                    <div style={{ fontSize: 9, color: '#3a4055', marginTop: 2 }}>OT ouverts</div>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', background: late.length > 0 ? 'rgba(255,71,87,.06)' : 'rgba(255,255,255,.02)', border: `1px solid ${late.length > 0 ? 'rgba(255,71,87,.2)' : 'rgba(255,255,255,.06)'}`, borderRadius: 8 }}>
+                  <span style={{ fontSize: 14 }}>⚠️</span>
+                  <div>
+                    <div style={{ fontSize: 16, fontWeight: 800, color: late.length > 0 ? '#ff4757' : '#00c896', fontFamily: 'monospace', lineHeight: 1 }}>{late.length}</div>
+                    <div style={{ fontSize: 9, color: '#3a4055', marginTop: 2 }}>OT en retard</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )
+        })()}
+
         {/* Bouton créer intervention */}
         {!showNewOT ? (
           <button onClick={() => setShowNewOT(true)} style={{ width: '100%', padding: '14px', background: '#00c896', color: '#000', border: 'none', borderRadius: 12, fontWeight: 700, fontSize: 15, cursor: 'pointer', marginBottom: 14 }}>

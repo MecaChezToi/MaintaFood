@@ -193,9 +193,12 @@ export const interventionsApi = {
     return data
   },
   create: async (interv: Partial<Intervention>): Promise<Intervention | null> => {
-    const { data, error } = await supabase.from('interventions').insert(interv).select().single()
+    const { data, error } = await supabase.from('interventions').insert(interv).select('id').single()
     ensureNoError(error, 'Creation intervention')
-    return data
+    if (!data?.id) return null
+    // Re-fetch avec jointures pour avoir equipment/technician/creator dans la liste
+    const { data: full } = await supabase.from('interventions').select(INT_LIST_SELECT).eq('id', data.id).single()
+    return full
   },
   updateStatus: async (id: string, status: string): Promise<void> => {
     const { error } = await supabase.from('interventions').update({ status }).eq('id', id)

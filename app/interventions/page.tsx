@@ -269,7 +269,7 @@ function ReportForm({ interv, equipment, user, onSave, onClose }: any) {
 }
 
 // ─── NOUVELLE INTERVENTION ───────────────────────────────────
-function NewIntModal({ equipments, technicians, user, onClose, onSave, error }: any) {
+function NewIntModal({ equipments, technicians, user, onClose, onSave, error, onReload }: any) {
   const [form, setForm] = useState<{ title: string; equipment_id: string; technician_id: string; priority: 'normale'|'haute'|'critique'; description: string; food_impact: boolean; production_stopped: boolean }>({
     title: '', equipment_id: '', technician_id: user.role === 'technician' ? user.id : '',
     priority: 'normale', description: '', food_impact: false, production_stopped: false
@@ -278,13 +278,22 @@ function NewIntModal({ equipments, technicians, user, onClose, onSave, error }: 
   const s = (k: string, v: any) => setForm(p => ({ ...p, [k]: v }))
   const eq = equipments.find((e: Equipment) => e.id === form.equipment_id)
 
+  // Recharge les donnees si les listes sont vides (iOS PWA / chargement lent)
+  useEffect(() => {
+    if (equipments.length === 0 && onReload) {
+      onReload().catch(() => {})
+    }
+  }, [])
+
   const save = async () => {
     if (!form.title || !form.equipment_id) return
     setSaving(true)
     try {
       await onSave({ ...form, created_by: user.id })
       auditApi.log(user.id, 'Intervention créée', form.title, `Équipement: ${eq?.name}`)
-      onClose()
+      onClose() // seulement si onSave() a réussi
+    } catch {
+      // l'erreur est gérée dans createIntervention (setError)
     } finally { setSaving(false) }
   }
 
@@ -306,7 +315,7 @@ function NewIntModal({ equipments, technicians, user, onClose, onSave, error }: 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
               <label className="form-label">Équipement *</label>
               <select className="form-input" value={form.equipment_id} onChange={e => s('equipment_id', e.target.value)}>
-                <option value="">Sélectionner...</option>
+                <option value="">{equipments.length === 0 ? 'Chargement...' : 'Sélectionner...'}</option>
                 {equipments.map((e: Equipment) => <option key={e.id} value={e.id}>{e.name}</option>)}
               </select>
             </div>
@@ -389,25 +398,40 @@ export default function InterventionsPage() {
   const showToast = (message: string) => { setToast(message); setTimeout(() => setToast(null), 3000) }
 
   const updateStatus = async (interv: Intervention, status: 'a_faire'|'en_cours'|'termine'|'valide') => {
+    // Mise à jour optimiste locale immédiate
     updateIntervention(interv.id, { status })
     setSelected(prev => prev?.id === interv.id ? { ...prev, status } : prev)
-    await offlineInterventionsApi.updateStatus(interv.id, status)
-    auditApi.log(user.id, 'Statut modifié', interv.title, `→ ${STATUS_CONFIG[status].label}`)
+    try {
+      await offlineInterventionsApi.updateStatus(interv.id, status)
+    } catch {
+      // Fallback direct Supabase si offlineApi echoue
+      try { await interventionsApi.updateStatus(interv.id, status) } catch {}
+    }
+    try { auditApi.log(user.id, 'Statut modifie', interv.title, `-> ${STATUS_CONFIG[status].label}`) } catch {}
   }
 
   const createIntervention = async (payload: any) => {
     setError(null)
     try {
-      const created = await offlineInterventionsApi.create({
-        ...payload,
-        organization_id: user.organization_id,
-      })
+      let created: any = null
+      try {
+        created = await offlineInterventionsApi.create({
+          ...payload,
+          organization_id: user.organization_id,
+        })
+      } catch {
+        // Fallback direct Supabase si offlineApi echoue (iOS PWA, IndexedDB indisponible)
+        created = await interventionsApi.create({
+          ...payload,
+          organization_id: user.organization_id,
+        })
+      }
       if (created) addIntervention(created)
       const isOffline = !networkStatus.isOnline()
-      showToast(isOffline ? 'Intervention sauvegardée hors ligne' : 'Intervention créée')
+      showToast(isOffline ? 'Intervention sauvegardee hors ligne' : 'Intervention creee')
       setShowNew(false)
     } catch (e: any) {
-      setError(e.message || "Impossible de créer l'intervention.")
+      setError(e.message || "Impossible de creer l'intervention.")
       throw e
     }
   }
@@ -536,7 +560,7 @@ export default function InterventionsPage() {
         </div>
       )}
 
-      {showNew && <NewIntModal equipments={equipments} technicians={technicians} user={user} error={error} onClose={() => { setShowNew(false); setError(null) }} onSave={createIntervention} />}
+      {showNew && <NewIntModal equipments={equipments} technicians={technicians} user={user} error={error} onClose={() => { setShowNew(false); setError(null) }} onSave={createIntervention} onReload={reloadInterventions} />}
       {selected && showReport && <ReportForm interv={selected} equipment={equipments.find(e => e.id === selected.equipment_id)} user={user} onSave={async () => { setShowReport(false); await reloadInterventions() }} onClose={() => setShowReport(false)} />}
     </AppLayout>
   )
