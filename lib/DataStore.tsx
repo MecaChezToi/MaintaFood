@@ -36,7 +36,7 @@ const DataContext = createContext<DataContextType>({
   updateEquipment: () => {},
 })
 
-const CACHE_TTL = 5 * 60 * 1000
+const CACHE_TTL = 30 * 1000 // 30 secondes — refresh fréquent
 const TIMEOUT_MS = 8000
 
 function withTimeout<T>(promise: Promise<T>, ms: number, fallback: T): Promise<T> {
@@ -190,9 +190,29 @@ export function DataProvider({ children }: { children: ReactNode }) {
       }
     })
 
+    // 5. Rechargement automatique toutes les 30s si fenêtre active
+    const autoReload = setInterval(() => {
+      if (typeof document !== 'undefined' && !document.hidden && networkStatus.isOnline()) {
+        loadFromNetwork(false) // respecte le TTL — ne recharge que si nécessaire
+      }
+    }, 30000)
+
+    // 6. Recharger quand la fenêtre reprend le focus
+    const onFocus = () => {
+      if (networkStatus.isOnline()) loadFromNetwork(false)
+    }
+    if (typeof window !== 'undefined') {
+      window.addEventListener('focus', onFocus)
+      document.addEventListener('visibilitychange', () => {
+        if (!document.hidden && networkStatus.isOnline()) loadFromNetwork(false)
+      })
+    }
+
     return () => {
       clearTimeout(t)
+      clearInterval(autoReload)
       unsubNetwork()
+      if (typeof window !== 'undefined') window.removeEventListener('focus', onFocus)
     }
   }, [])
 
