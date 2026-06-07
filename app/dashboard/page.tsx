@@ -25,8 +25,8 @@ function MiniBarChart({ data }: { data: { label: string; v: number; crit: number
             <div style={{
               flex: 1, borderRadius: '4px 4px 0 0',
               height: `${Math.max(4, (d.v / max) * 96)}px`,
-              background: 'rgba(0,200,150,.55)',
-              border: '1px solid rgba(0,200,150,.25)',
+              background: 'rgba(0,208,216,.55)',
+              border: '1px solid rgba(0,208,216,.25)',
               transition: 'height .4s ease',
             }} />
             {d.crit > 0 && (
@@ -93,7 +93,7 @@ function ConformityRing({ rate, done }: { rate: number; done: number }) {
   const r = 38
   const circ = 2 * Math.PI * r
   const dash = (rate / 100) * circ
-  const color = rate >= 95 ? '#00c896' : rate >= 80 ? '#f59e0b' : '#ff4757'
+  const color = rate >= 95 ? '#00d0d8' : rate >= 80 ? '#f59e0b' : '#ff4757'
   const label = rate >= 95 ? 'Conforme IFS/BRC' : rate >= 80 ? 'À surveiller' : 'Sous le seuil'
   return (
     <div style={{
@@ -166,10 +166,10 @@ function EquipmentCarousel({ equipments, interventions }: { equipments: Equipmen
   const late = open.filter(i => (Date.now() - new Date(i.created_at).getTime()) / 86400000 > 7)
   const totalDownMin = done.reduce((s, i) => s + (i.report_duration || 0), 0)
   const dispo = Math.min(100, Math.round((1 - totalDownMin / (90 * 24 * 60)) * 1000) / 10)
-  const dispoColor = dispo >= 98 ? '#00c896' : dispo >= 90 ? '#f59e0b' : '#ff4757'
-  const mtbfColor = !mtbfDays ? 'var(--t3)' : mtbfDays >= 60 ? '#00c896' : mtbfDays >= 30 ? '#f59e0b' : '#ff4757'
+  const dispoColor = dispo >= 98 ? '#00d0d8' : dispo >= 90 ? '#f59e0b' : '#ff4757'
+  const mtbfColor = !mtbfDays ? 'var(--t3)' : mtbfDays >= 60 ? '#00d0d8' : mtbfDays >= 30 ? '#f59e0b' : '#ff4757'
 
-  const statusColors: Record<string, string> = { ok: '#00c896', maintenance: '#f59e0b', panne: '#ff4757', inactif: '#7a8599' }
+  const statusColors: Record<string, string> = { ok: '#00d0d8', maintenance: '#f59e0b', panne: '#ff4757', inactif: '#7a8599' }
   const statusLabels: Record<string, string> = { ok: 'Opérationnel', maintenance: 'Maintenance', panne: 'En panne', inactif: 'Inactif' }
   const sc = statusColors[eq.status] || 'var(--t3)'
 
@@ -189,7 +189,7 @@ function EquipmentCarousel({ equipments, interventions }: { equipments: Equipmen
             style={{ width: 24, height: 24, borderRadius: 6, border: '1px solid var(--b0)', background: 'transparent', color: 'var(--t2)', cursor: 'pointer', fontSize: 12, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>‹</button>
           <button onClick={() => { setCurrent(c => (c + 1) % eqs.length); setPaused(true) }}
             style={{ width: 24, height: 24, borderRadius: 6, border: '1px solid var(--b0)', background: 'transparent', color: 'var(--t2)', cursor: 'pointer', fontSize: 12, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>›</button>
-          <a href={`/eq/${eq.id}`} style={{ fontSize: 11, color: '#00c896', textDecoration: 'none', fontFamily: 'var(--font-mono)', marginLeft: 4 }}>Fiche →</a>
+          <a href={`/eq/${eq.id}`} style={{ fontSize: 11, color: '#00d0d8', textDecoration: 'none', fontFamily: 'var(--font-mono)', marginLeft: 4 }}>Fiche →</a>
         </div>
       </div>
 
@@ -211,8 +211,8 @@ function EquipmentCarousel({ equipments, interventions }: { equipments: Equipmen
           {[
             { label: 'MTBF', value: mtbfDays !== null ? `${mtbfDays}j` : '—', color: mtbfColor },
             { label: 'MTTR', value: mttrStr, color: '#3c82e8' },
-            { label: 'OT ouverts', value: open.length, color: open.length > 0 ? '#f59e0b' : '#00c896' },
-            { label: 'En retard', value: late.length, color: late.length > 0 ? '#ff4757' : '#00c896' },
+            { label: 'OT ouverts', value: open.length, color: open.length > 0 ? '#f59e0b' : '#00d0d8' },
+            { label: 'En retard', value: late.length, color: late.length > 0 ? '#ff4757' : '#00d0d8' },
             { label: 'Dispo.', value: `${dispo}%`, color: dispoColor },
           ].map(({ label, value, color }) => (
             <div key={label} style={{ background: 'rgba(255,255,255,.03)', borderRadius: 8, padding: '8px 10px', textAlign: 'center' }}>
@@ -230,7 +230,7 @@ function EquipmentCarousel({ equipments, interventions }: { equipments: Equipmen
           {eqs.map((_, i) => (
             <button key={i} onClick={() => { setCurrent(i); setPaused(true) }}
               style={{ width: i === current ? 16 : 5, height: 5, borderRadius: 3, border: 'none', cursor: 'pointer', padding: 0,
-                background: i === current ? '#00c896' : 'rgba(255,255,255,.12)', transition: 'all .25s ease' }} />
+                background: i === current ? '#00d0d8' : 'rgba(255,255,255,.12)', transition: 'all .25s ease' }} />
           ))}
         </div>
       </div>
@@ -291,14 +291,14 @@ export default function DashboardPage() {
 
   // KPIs selon rôle (Conformité affichée séparément pour admin)
   const kpis = isTech ? [
-    { value: myOT.length, label: 'Mes interventions', sub: `${myOT.filter(i => i.status === 'a_faire').length} à faire`, color: '#00c896', icon: '🔧' },
+    { value: myOT.length, label: 'Mes interventions', sub: `${myOT.filter(i => i.status === 'a_faire').length} à faire`, color: '#00d0d8', icon: '🔧' },
     { value: myOT.filter(i => i.status === 'en_cours').length, label: 'En cours', sub: 'interventions actives', color: '#3c82e8', icon: '⚡' },
     { value: myOT.filter(i => ['termine','valide'].includes(i.status)).length, label: 'Terminées', sub: 'rapports complétés', color: '#a855f7', icon: '✅' },
     { value: myOT.filter(i => i.report_verdict).length, label: 'Rapports signés', sub: 'documents PDF', color: '#f59e0b', icon: '📄' },
   ] : [
-    { value: equipments.length, label: 'Équipements', sub: `${pannes.length} en panne`, color: '#00c896', icon: '⚙️' },
+    { value: equipments.length, label: 'Équipements', sub: `${pannes.length} en panne`, color: '#00d0d8', icon: '⚙️' },
     { value: interventions.filter(i => i.status === 'a_faire').length, label: 'OT en attente', sub: 'à planifier', color: '#f59e0b', icon: '📋' },
-    { value: foodAlerts.length, label: 'Alertes alim.', sub: 'risques non clôturés', color: foodAlerts.length > 0 ? '#ff4757' : '#00c896', icon: '🚨' },
+    { value: foodAlerts.length, label: 'Alertes alim.', sub: 'risques non clôturés', color: foodAlerts.length > 0 ? '#ff4757' : '#00d0d8', icon: '🚨' },
   ]
 
   // Barres mensuelles (6 derniers mois)
@@ -321,7 +321,7 @@ export default function DashboardPage() {
   const donutData = [
     { label: 'À faire',  value: myOT.filter(i => i.status === 'a_faire').length,  color: '#f59e0b' },
     { label: 'En cours', value: myOT.filter(i => i.status === 'en_cours').length, color: '#3c82e8' },
-    { label: 'Terminé',  value: myOT.filter(i => i.status === 'termine').length,  color: '#00c896' },
+    { label: 'Terminé',  value: myOT.filter(i => i.status === 'termine').length,  color: '#00d0d8' },
     { label: 'Validé',   value: myOT.filter(i => i.status === 'valide').length,   color: '#a855f7' },
   ]
 
@@ -346,10 +346,10 @@ export default function DashboardPage() {
         </div>
         <a href="/interventions" style={{
           display: 'inline-flex', alignItems: 'center', gap: 6,
-          background: '#00c896', color: '#000', borderRadius: 8,
+          background: '#00d0d8', color: '#000', borderRadius: 8,
           padding: '9px 16px', fontWeight: 700, fontSize: 13,
           textDecoration: 'none', flexShrink: 0,
-          boxShadow: '0 0 20px rgba(0,200,150,.25)',
+          boxShadow: '0 0 20px rgba(0,208,216,.25)',
         }}>
           <span style={{ fontSize: 16, lineHeight: 1 }}>+</span> Nouvel OT
         </a>
@@ -393,23 +393,23 @@ export default function DashboardPage() {
         <div style={{ background: 'var(--s1)', border: '1px solid var(--b0)', borderRadius: 12, overflow: 'hidden' }}>
           <div style={{ padding: '14px 18px 12px', borderBottom: '1px solid var(--b0)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <span style={{ fontSize: 14, fontWeight: 700 }}>{isTech ? 'Mes ordres de travail' : 'Interventions récentes'}</span>
-            <a href="/interventions" style={{ fontSize: 11, color: '#00c896', textDecoration: 'none', fontFamily: 'var(--font-mono)' }}>Voir tout →</a>
+            <a href="/interventions" style={{ fontSize: 11, color: '#00d0d8', textDecoration: 'none', fontFamily: 'var(--font-mono)' }}>Voir tout →</a>
           </div>
           {loading ? (
             <div style={{ padding: 40, textAlign: 'center', color: 'var(--t2)', fontSize: 13 }}>Chargement…</div>
           ) : myOT.length === 0 ? (
             <div style={{ padding: '32px 24px', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
               <svg width={56} height={56} viewBox="0 0 56 56" fill="none">
-                <circle cx={28} cy={28} r={27} stroke="rgba(0,200,150,.15)" strokeWidth={1.5} />
-                <rect x={16} y={18} width={24} height={4} rx={2} fill="rgba(0,200,150,.25)" />
-                <rect x={16} y={26} width={18} height={3} rx={1.5} fill="rgba(0,200,150,.15)" />
-                <rect x={16} y={33} width={20} height={3} rx={1.5} fill="rgba(0,200,150,.15)" />
-                <circle cx={38} cy={38} r={8} fill="rgba(0,200,150,.12)" stroke="rgba(0,200,150,.3)" strokeWidth={1.5} />
-                <text x={38} y={42} textAnchor="middle" fill="#00c896" fontSize={10} fontWeight={800}>+</text>
+                <circle cx={28} cy={28} r={27} stroke="rgba(0,208,216,.15)" strokeWidth={1.5} />
+                <rect x={16} y={18} width={24} height={4} rx={2} fill="rgba(0,208,216,.25)" />
+                <rect x={16} y={26} width={18} height={3} rx={1.5} fill="rgba(0,208,216,.15)" />
+                <rect x={16} y={33} width={20} height={3} rx={1.5} fill="rgba(0,208,216,.15)" />
+                <circle cx={38} cy={38} r={8} fill="rgba(0,208,216,.12)" stroke="rgba(0,208,216,.3)" strokeWidth={1.5} />
+                <text x={38} y={42} textAnchor="middle" fill="#00d0d8" fontSize={10} fontWeight={800}>+</text>
               </svg>
               <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--t1)' }}>Aucune intervention</div>
               <div style={{ fontSize: 12, color: 'var(--t3)', maxWidth: 200, lineHeight: 1.5 }}>Créez votre premier ordre de travail pour commencer le suivi</div>
-              <a href="/interventions" style={{ marginTop: 4, display: 'inline-flex', alignItems: 'center', gap: 5, background: 'rgba(0,200,150,.12)', border: '1px solid rgba(0,200,150,.25)', color: '#00c896', borderRadius: 6, padding: '7px 14px', fontSize: 12, fontWeight: 600, textDecoration: 'none' }}>
+              <a href="/interventions" style={{ marginTop: 4, display: 'inline-flex', alignItems: 'center', gap: 5, background: 'rgba(0,208,216,.12)', border: '1px solid rgba(0,208,216,.25)', color: '#00d0d8', borderRadius: 6, padding: '7px 14px', fontSize: 12, fontWeight: 600, textDecoration: 'none' }}>
                 + Créer un OT
               </a>
             </div>
@@ -455,10 +455,10 @@ export default function DashboardPage() {
                 {monthly.length === 0 ? (
                   <div style={{ height: 120, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
                     <svg width={40} height={40} viewBox="0 0 40 40" fill="none">
-                      <rect x={4} y={24} width={7} height={12} rx={2} fill="rgba(0,200,150,.2)" />
-                      <rect x={14} y={16} width={7} height={20} rx={2} fill="rgba(0,200,150,.15)" />
-                      <rect x={24} y={8} width={7} height={28} rx={2} fill="rgba(0,200,150,.1)" />
-                      <path d="M4 24 L17 16 L27 8" stroke="rgba(0,200,150,.3)" strokeWidth={1.5} strokeDasharray="2 2" />
+                      <rect x={4} y={24} width={7} height={12} rx={2} fill="rgba(0,208,216,.2)" />
+                      <rect x={14} y={16} width={7} height={20} rx={2} fill="rgba(0,208,216,.15)" />
+                      <rect x={24} y={8} width={7} height={28} rx={2} fill="rgba(0,208,216,.1)" />
+                      <path d="M4 24 L17 16 L27 8" stroke="rgba(0,208,216,.3)" strokeWidth={1.5} strokeDasharray="2 2" />
                     </svg>
                     <div style={{ fontSize: 11, color: 'var(--t3)', textAlign: 'center', lineHeight: 1.4 }}>Les données s'afficheront<br />après vos premiers OT</div>
                   </div>
@@ -467,7 +467,7 @@ export default function DashboardPage() {
                     <MiniBarChart data={monthly} />
                     <div style={{ display: 'flex', gap: 12, marginTop: 8 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 9, color: 'var(--t2)', fontFamily: 'var(--font-mono)' }}>
-                        <div style={{ width: 8, height: 8, background: 'rgba(0,200,150,.55)', borderRadius: 2 }} />Total
+                        <div style={{ width: 8, height: 8, background: 'rgba(0,208,216,.55)', borderRadius: 2 }} />Total
                       </div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 9, color: 'var(--t2)', fontFamily: 'var(--font-mono)' }}>
                         <div style={{ width: 8, height: 8, background: 'rgba(255,71,87,.7)', borderRadius: 2 }} />Critiques
@@ -484,7 +484,7 @@ export default function DashboardPage() {
                   <div style={{ height: 120, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
                     <svg width={48} height={48} viewBox="0 0 48 48" fill="none">
                       <circle cx={24} cy={24} r={18} stroke="rgba(255,255,255,.06)" strokeWidth={8} />
-                      <circle cx={24} cy={24} r={18} stroke="rgba(0,200,150,.15)" strokeWidth={8} strokeDasharray="28 85" strokeLinecap="round" style={{ transform: 'rotate(-90deg)', transformOrigin: '24px 24px' }} />
+                      <circle cx={24} cy={24} r={18} stroke="rgba(0,208,216,.15)" strokeWidth={8} strokeDasharray="28 85" strokeLinecap="round" style={{ transform: 'rotate(-90deg)', transformOrigin: '24px 24px' }} />
                       <circle cx={24} cy={24} r={18} stroke="rgba(59,130,232,.12)" strokeWidth={8} strokeDasharray="20 85" strokeDashoffset="-28" strokeLinecap="round" style={{ transform: 'rotate(-90deg)', transformOrigin: '24px 24px' }} />
                     </svg>
                     <div style={{ fontSize: 11, color: 'var(--t3)', textAlign: 'center', lineHeight: 1.4 }}>Répartition disponible<br />dès le 1er OT créé</div>
@@ -544,7 +544,7 @@ export default function DashboardPage() {
               const urgent = days < 30
               return (
                 <div key={eq.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 0', borderBottom: '1px solid var(--b0)' }}>
-                  <div style={{ width: 8, height: 8, borderRadius: '50%', background: overdue ? '#ff4757' : urgent ? '#f59e0b' : '#00c896', flexShrink: 0 }} />
+                  <div style={{ width: 8, height: 8, borderRadius: '50%', background: overdue ? '#ff4757' : urgent ? '#f59e0b' : '#00d0d8', flexShrink: 0 }} />
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 13, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{eq.name}</div>
                     <div style={{ fontSize: 11, color: 'var(--t2)' }}>{fmt(eq.next_inspection)}</div>
@@ -565,8 +565,8 @@ export default function DashboardPage() {
         {/* Certifications + équipements */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           {/* Certifications */}
-          <div style={{ background: 'rgba(0,200,150,.03)', border: '1px solid rgba(0,200,150,.15)', borderRadius: 12, padding: 16 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, color: '#00c896' }}>
+          <div style={{ background: 'rgba(0,208,216,.03)', border: '1px solid rgba(0,208,216,.15)', borderRadius: 12, padding: 16 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, color: '#00d0d8' }}>
               <span>🛡️</span>
               <span style={{ fontWeight: 700, fontSize: 13 }}>Certifications actives</span>
             </div>
@@ -585,7 +585,7 @@ export default function DashboardPage() {
             <div style={{ background: 'var(--s1)', border: '1px solid var(--b0)', borderRadius: 12, padding: 16 }}>
               <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 12 }}>⚙️ Statut équipements</div>
               {[
-                { label: 'Opérationnels', count: equipments.filter(e => e.status === 'ok').length, color: '#00c896' },
+                { label: 'Opérationnels', count: equipments.filter(e => e.status === 'ok').length, color: '#00d0d8' },
                 { label: 'En maintenance', count: equipments.filter(e => e.status === 'maintenance').length, color: '#f59e0b' },
                 { label: 'En panne', count: equipments.filter(e => e.status === 'panne').length, color: '#ff4757' },
               ].map((s, i) => (

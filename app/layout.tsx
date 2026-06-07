@@ -18,7 +18,7 @@ export const metadata: Metadata = {
 }
 
 export const viewport: Viewport = {
-  themeColor: '#22c55e', width: 'device-width',
+  themeColor: '#00d0d8', width: 'device-width',
   initialScale: 1, maximumScale: 1, userScalable: false,
 }
 
@@ -34,11 +34,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body>
         <AuthProvider>
           <OfflineProvider>
-      <DataProvider>
-            <ServiceWorkerRegister />
-            {children}
-          </DataProvider>
-      </OfflineProvider>
+            <DataProvider>
+              <ServiceWorkerRegister />
+              {children}
+            </DataProvider>
+          </OfflineProvider>
         </AuthProvider>
       </body>
     </html>
