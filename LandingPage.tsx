@@ -28,7 +28,7 @@ export default function LandingPage() {
         const critH = Math.round((d.crit / maxVal) * 90)
         col.innerHTML = `
           <div style="display:flex;gap:2px;align-items:flex-end;height:90px">
-            <div style="width:10px;height:${totalH}px;background:#22c55e;border-radius:3px 3px 0 0;opacity:.7"></div>
+            <div style="width:10px;height:${totalH}px;background:#00d0d8;border-radius:3px 3px 0 0;opacity:.7"></div>
             <div style="width:10px;height:${critH}px;background:#ef4444;border-radius:3px 3px 0 0"></div>
           </div>
           <div style="font-size:8px;color:#52525b;margin-top:3px">${d.mois}</div>
@@ -99,47 +99,47 @@ export default function LandingPage() {
         .lp-nav { position: fixed; top: 0; left: 0; right: 0; z-index: 100; background: rgba(9,9,11,.85); backdrop-filter: blur(20px); border-bottom: 1px solid rgba(255,255,255,.07); }
         .lp-nav-inner { max-width: 1200px; margin: auto; padding: 0 32px; height: 68px; display: flex; align-items: center; justify-content: space-between; }
         .lp-logo { display: flex; align-items: center; gap: 10px; font-family: 'Syne', sans-serif; font-size: 22px; font-weight: 800; color: #fafafa; text-decoration: none; }
-        .lp-logo span { color: #22c55e; }
+        .lp-logo span { color: #00d0d8; }
         .lp-nav-links { display: flex; align-items: center; gap: 8px; }
         .lp-nav-links a { color: #a1a1aa; text-decoration: none; font-size: 14px; font-weight: 500; padding: 7px 14px; border-radius: 8px; transition: all .15s; }
         .lp-nav-links a:hover { color: #fafafa; background: rgba(255,255,255,.05); }
-        .lp-nav-cta { background: #22c55e !important; color: #000 !important; font-weight: 700 !important; }
-        .lp-nav-cta:hover { background: #16a34a !important; }
+        .lp-nav-cta { background: #00d0d8 !important; color: #000 !important; font-weight: 700 !important; }
+        .lp-nav-cta:hover { background: #00b0b8 !important; }
 
         /* HERO */
         .lp-hero { padding: 160px 0 100px; position: relative; overflow: hidden; }
-        .lp-hero::before { content: ''; position: absolute; top: -200px; right: -200px; width: 800px; height: 800px; border-radius: 50%; background: radial-gradient(circle, rgba(34,197,94,.12) 0%, transparent 65%); pointer-events: none; }
-        .lp-badge { display: inline-flex; align-items: center; gap: 8px; padding: 8px 16px; border-radius: 999px; background: rgba(34,197,94,.06); border: 1px solid rgba(34,197,94,.25); color: #22c55e; font-size: 13px; font-weight: 600; margin-bottom: 32px; animation: lp-fadeUp .6s ease both; }
-        .lp-badge-dot { width: 7px; height: 7px; border-radius: 50%; background: #22c55e; animation: lp-pulse 2s infinite; }
+        .lp-hero::before { content: ''; position: absolute; top: -200px; right: -200px; width: 800px; height: 800px; border-radius: 50%; background: radial-gradient(circle, rgba(124,58,237,.1) 0%, transparent 65%); pointer-events: none; }
+        .lp-badge { display: inline-flex; align-items: center; gap: 8px; padding: 8px 16px; border-radius: 999px; background: rgba(0,208,216,.06); border: 1px solid rgba(0,208,216,.25); color: #00d0d8; font-size: 13px; font-weight: 600; margin-bottom: 32px; animation: lp-fadeUp .6s ease both; }
+        .lp-badge-dot { width: 7px; height: 7px; border-radius: 50%; background: #00d0d8; animation: lp-pulse 2s infinite; }
         @keyframes lp-pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.5;transform:scale(1.3)} }
         @keyframes lp-fadeUp { from{opacity:0;transform:translateY(24px)} to{opacity:1;transform:translateY(0)} }
         .lp-h1 { font-family: 'Syne', sans-serif; font-size: 72px; font-weight: 800; line-height: 1.02; letter-spacing: -2px; max-width: 860px; animation: lp-fadeUp .7s .1s ease both; }
-        .lp-h1 .green { color: #22c55e; }
+        .lp-h1 .green { color: #00d0d8; }
         .lp-h1 .dim { color: #3f3f46; }
         .lp-sub { font-size: 20px; color: #a1a1aa; max-width: 620px; line-height: 1.65; margin-top: 24px; animation: lp-fadeUp .7s .2s ease both; }
         .lp-btns { display: flex; gap: 14px; margin-top: 40px; flex-wrap: wrap; animation: lp-fadeUp .7s .3s ease both; }
-        .lp-btn-p { display: inline-flex; align-items: center; gap: 8px; padding: 14px 28px; border-radius: 12px; background: #22c55e; color: #000; font-weight: 700; font-size: 15px; text-decoration: none; transition: all .15s; }
-        .lp-btn-p:hover { background: #16a34a; transform: translateY(-2px); box-shadow: 0 12px 32px rgba(34,197,94,.25); }
+        .lp-btn-p { display: inline-flex; align-items: center; gap: 8px; padding: 14px 28px; border-radius: 12px; background: #00d0d8; color: #000; font-weight: 700; font-size: 15px; text-decoration: none; transition: all .15s; }
+        .lp-btn-p:hover { background: #00b0b8; transform: translateY(-2px); box-shadow: 0 12px 32px rgba(0,208,216,.25); }
         .lp-btn-s { display: inline-flex; align-items: center; gap: 8px; padding: 14px 28px; border-radius: 12px; border: 1px solid rgba(255,255,255,.12); color: #fafafa; font-weight: 600; font-size: 15px; text-decoration: none; transition: all .15s; }
         .lp-btn-s:hover { border-color: rgba(255,255,255,.25); background: rgba(255,255,255,.04); }
 
         /* STATS */
         .lp-stats { display: flex; gap: 40px; margin-top: 56px; animation: lp-fadeUp .7s .4s ease both; flex-wrap: wrap; }
-        .lp-stat-val { font-family: 'Syne', sans-serif; font-size: 32px; font-weight: 800; color: #22c55e; }
+        .lp-stat-val { font-family: 'Syne', sans-serif; font-size: 32px; font-weight: 800; color: #00d0d8; }
         .lp-stat-lbl { font-size: 13px; color: #a1a1aa; margin-top: 2px; }
 
         /* DASHBOARD PREVIEW */
         .lp-preview { margin-top: 80px; background: #18181b; border: 1px solid rgba(255,255,255,.12); border-radius: 24px; overflow: hidden; box-shadow: 0 40px 120px rgba(0,0,0,.6); animation: lp-fadeUp .8s .5s ease both; position: relative; }
-        .lp-preview::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 1px; background: linear-gradient(90deg, transparent, rgba(34,197,94,.4), transparent); }
+        .lp-preview::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 1px; background: linear-gradient(90deg, transparent, rgba(0,208,216,.4), transparent); }
         .lp-browser { background: #0f0f11; border-bottom: 1px solid rgba(255,255,255,.07); padding: 12px 16px; display: flex; align-items: center; gap: 12px; }
         .lp-dots { display: flex; gap: 6px; }
         .lp-dots span { width: 12px; height: 12px; border-radius: 50%; }
         .lp-url { flex: 1; background: #1f2024; border-radius: 6px; padding: 5px 12px; font-size: 12px; color: #52525b; font-family: monospace; max-width: 320px; }
         .lp-dash { display: flex; height: 520px; overflow: hidden; }
         .lp-sidebar { width: 200px; min-width: 200px; background: #0f0f11; border-right: 1px solid rgba(255,255,255,.07); padding: 16px 10px; display: flex; flex-direction: column; gap: 2px; }
-        .lp-dash-logo { display: flex; align-items: center; gap: 8px; padding: 8px 10px; margin-bottom: 12px; font-family: 'Syne', sans-serif; font-weight: 800; font-size: 16px; color: #22c55e; }
+        .lp-dash-logo { display: flex; align-items: center; gap: 8px; padding: 8px 10px; margin-bottom: 12px; font-family: 'Syne', sans-serif; font-weight: 800; font-size: 16px; color: #00d0d8; }
         .lp-nav-item { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 6px; font-size: 12px; color: #a1a1aa; }
-        .lp-nav-item.on { background: rgba(34,197,94,.1); color: #fafafa; border-left: 2px solid #22c55e; }
+        .lp-nav-item.on { background: rgba(124,58,237,.15); color: #fafafa; border-left: 2px solid #00d0d8; }
         .lp-main { flex: 1; overflow: hidden; padding: 20px; background: #09090b; display: flex; flex-direction: column; gap: 14px; }
         .lp-kpi-row { display: grid; grid-template-columns: repeat(4,1fr); gap: 10px; }
         .lp-kpi { background: #111113; border: 1px solid rgba(255,255,255,.07); border-radius: 10px; padding: 14px; }
@@ -158,7 +158,7 @@ export default function LandingPage() {
 
         /* SECTIONS */
         .lp-section { padding: 100px 0; }
-        .lp-section-badge { display: inline-flex; padding: 6px 14px; border-radius: 999px; background: rgba(34,197,94,.06); border: 1px solid rgba(34,197,94,.2); color: #22c55e; font-size: 12px; font-weight: 600; margin-bottom: 20px; }
+        .lp-section-badge { display: inline-flex; padding: 6px 14px; border-radius: 999px; background: rgba(0,208,216,.06); border: 1px solid rgba(0,208,216,.2); color: #00d0d8; font-size: 12px; font-weight: 600; margin-bottom: 20px; }
         .lp-section-title { font-family: 'Syne', sans-serif; font-size: 48px; font-weight: 800; letter-spacing: -1.5px; line-height: 1.08; }
         .lp-section-sub { color: #a1a1aa; font-size: 18px; margin-top: 16px; max-width: 560px; line-height: 1.65; }
 
@@ -166,7 +166,7 @@ export default function LandingPage() {
         .lp-features { display: grid; grid-template-columns: repeat(3,1fr); gap: 1px; background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.07); border-radius: 20px; overflow: hidden; margin-top: 60px; }
         .lp-feature { background: #111113; padding: 36px 32px; transition: background .2s; }
         .lp-feature:hover { background: #18181b; }
-        .lp-feature-icon { width: 44px; height: 44px; border-radius: 10px; background: rgba(34,197,94,.06); border: 1px solid rgba(34,197,94,.2); display: flex; align-items: center; justify-content: center; font-size: 20px; margin-bottom: 20px; }
+        .lp-feature-icon { width: 44px; height: 44px; border-radius: 10px; background: rgba(0,208,216,.06); border: 1px solid rgba(0,208,216,.2); display: flex; align-items: center; justify-content: center; font-size: 20px; margin-bottom: 20px; }
         .lp-feature-title { font-family: 'Syne', sans-serif; font-size: 18px; font-weight: 700; margin-bottom: 10px; }
         .lp-feature-desc { color: #a1a1aa; font-size: 14px; line-height: 1.65; }
 
@@ -174,30 +174,30 @@ export default function LandingPage() {
         .lp-metrics { padding: 100px 0; background: linear-gradient(135deg, #111113 0%, #09090b 50%, #111113 100%); border-top: 1px solid rgba(255,255,255,.07); border-bottom: 1px solid rgba(255,255,255,.07); }
         .lp-metrics-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 1px; background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.07); border-radius: 20px; overflow: hidden; }
         .lp-metric { background: #111113; padding: 40px 32px; text-align: center; }
-        .lp-metric-val { font-family: 'Syne', sans-serif; font-size: 52px; font-weight: 800; color: #22c55e; line-height: 1; }
-        .lp-metric-unit { font-family: 'Syne', sans-serif; font-size: 28px; color: #22c55e; }
+        .lp-metric-val { font-family: 'Syne', sans-serif; font-size: 52px; font-weight: 800; color: #00d0d8; line-height: 1; }
+        .lp-metric-unit { font-family: 'Syne', sans-serif; font-size: 28px; color: #00d0d8; }
         .lp-metric-lbl { color: #a1a1aa; font-size: 15px; margin-top: 10px; }
 
         /* PRICING */
         .lp-pricing-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 20px; margin-top: 60px; }
         .lp-price-card { background: #18181b; border: 1px solid rgba(255,255,255,.07); border-radius: 20px; padding: 32px; transition: all .2s; position: relative; overflow: hidden; }
         .lp-price-card:hover { transform: translateY(-4px); border-color: rgba(255,255,255,.12); }
-        .lp-price-card.featured { border-color: #22c55e; background: #111113; }
-        .lp-price-card.featured::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; background: #22c55e; }
-        .lp-price-badge { display: inline-block; padding: 4px 12px; border-radius: 999px; background: #22c55e; color: #000; font-size: 11px; font-weight: 700; margin-bottom: 20px; }
+        .lp-price-card.featured { border-color: #00d0d8; background: #111113; }
+        .lp-price-card.featured::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; background: #00d0d8; }
+        .lp-price-badge { display: inline-block; padding: 4px 12px; border-radius: 999px; background: #00d0d8; color: #000; font-size: 11px; font-weight: 700; margin-bottom: 20px; }
         .lp-price-name { font-family: 'Syne', sans-serif; font-size: 20px; font-weight: 700; margin-bottom: 8px; }
         .lp-price-val { font-family: 'Syne', sans-serif; font-size: 44px; font-weight: 800; line-height: 1; }
         .lp-price-val span { font-size: 16px; color: #a1a1aa; font-family: 'DM Sans', sans-serif; font-weight: 400; }
         .lp-price-period { font-size: 12px; color: #a1a1aa; margin: 8px 0 24px; }
         .lp-price-features { list-style: none; display: flex; flex-direction: column; gap: 10px; margin-bottom: 28px; }
         .lp-price-features li { display: flex; align-items: center; gap: 8px; font-size: 14px; color: #a1a1aa; }
-        .lp-price-features li::before { content: '✓'; color: #22c55e; font-weight: 700; flex-shrink: 0; }
+        .lp-price-features li::before { content: '✓'; color: #00d0d8; font-weight: 700; flex-shrink: 0; }
         .lp-price-features li.na::before { content: '—'; color: #3f3f46; }
         .lp-price-features li.na { color: #3f3f46; }
 
         /* CTA */
         .lp-cta-box { background: #18181b; border: 1px solid rgba(255,255,255,.12); border-radius: 28px; padding: 72px 60px; text-align: center; position: relative; overflow: hidden; }
-        .lp-cta-box::before { content: ''; position: absolute; top: -200px; left: 50%; transform: translateX(-50%); width: 600px; height: 400px; border-radius: 50%; background: radial-gradient(circle, rgba(34,197,94,.1) 0%, transparent 65%); pointer-events: none; }
+        .lp-cta-box::before { content: ''; position: absolute; top: -200px; left: 50%; transform: translateX(-50%); width: 600px; height: 400px; border-radius: 50%; background: radial-gradient(circle, rgba(124,58,237,.15) 0%, transparent 65%); pointer-events: none; }
         .lp-cta-title { font-family: 'Syne', sans-serif; font-size: 52px; font-weight: 800; letter-spacing: -1.5px; line-height: 1.05; margin-bottom: 20px; }
         .lp-cta-sub { color: #a1a1aa; font-size: 18px; margin-bottom: 40px; }
 
@@ -209,7 +209,7 @@ export default function LandingPage() {
         .lp-footer { border-top: 1px solid rgba(255,255,255,.07); padding: 48px 0; }
         .lp-footer-inner { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 20px; }
         .lp-footer-logo { font-family: 'Syne', sans-serif; font-size: 18px; font-weight: 800; }
-        .lp-footer-logo span { color: #22c55e; }
+        .lp-footer-logo span { color: #00d0d8; }
 
         /* RESPONSIVE */
         @media(max-width:900px) {
@@ -233,12 +233,7 @@ export default function LandingPage() {
         <nav className="lp-nav">
           <div className="lp-nav-inner">
             <a href="/" className="lp-logo">
-              <svg width="24" height="24" viewBox="0 0 64 64" fill="none">
-                <circle cx="32" cy="32" r="30" stroke="#22c55e" strokeWidth="4"/>
-                <path d="M20 34c6-14 18-14 24 0" stroke="#22c55e" strokeWidth="4" strokeLinecap="round"/>
-                <path d="M26 38h12" stroke="#22c55e" strokeWidth="4" strokeLinecap="round"/>
-              </svg>
-              MAINTA<span>FOOD</span>
+              <img src="/logo.png" alt="MaintaFood" style={{ height: 36, objectFit: 'contain' }} />
             </a>
             <div className="lp-nav-links">
               <a href="#features">Fonctionnalités</a>
@@ -289,7 +284,7 @@ export default function LandingPage() {
                 <div className="lp-dots">
                   <span style={{background:'#ef4444'}}></span>
                   <span style={{background:'#f59e0b'}}></span>
-                  <span style={{background:'#22c55e'}}></span>
+                  <span style={{background:'#00d0d8'}}></span>
                 </div>
                 <div className="lp-url">app.maintafood.io/dashboard</div>
               </div>
@@ -297,9 +292,9 @@ export default function LandingPage() {
                 <div className="lp-sidebar">
                   <div className="lp-dash-logo">
                     <svg width="16" height="16" viewBox="0 0 64 64" fill="none">
-                      <circle cx="32" cy="32" r="30" stroke="#22c55e" strokeWidth="5"/>
-                      <path d="M20 34c6-14 18-14 24 0" stroke="#22c55e" strokeWidth="5" strokeLinecap="round"/>
-                      <path d="M26 38h12" stroke="#22c55e" strokeWidth="5" strokeLinecap="round"/>
+                      <circle cx="32" cy="32" r="30" stroke="#00d0d8" strokeWidth="5"/>
+                      <path d="M20 34c6-14 18-14 24 0" stroke="#00d0d8" strokeWidth="5" strokeLinecap="round"/>
+                      <path d="M26 38h12" stroke="#00d0d8" strokeWidth="5" strokeLinecap="round"/>
                     </svg>
                     MaintaFood
                   </div>
@@ -312,7 +307,7 @@ export default function LandingPage() {
                   <div style={{fontSize:11,color:'#a1a1aa'}}>Usine Agroalimentaire Nord · IFS Food v8</div>
                   <div className="lp-alert">🛡 1 intervention avec risque alimentaire — action requise</div>
                   <div className="lp-kpi-row">
-                    {[['8','#22c55e','Clôturés','▲ 10 total'],['96%','#22c55e','Conformité','IFS/BRC ✓'],['163','#3b82f6','Durée moy.','min / OT'],['2','#ef4444','Alertes alim.','⚠ Action req.']].map(([v,c,l,t]) => (
+                    {[['8','#00d0d8','Clôturés','▲ 10 total'],['96%','#00d0d8','Conformité','IFS/BRC ✓'],['163','#3b82f6','Durée moy.','min / OT'],['2','#ef4444','Alertes alim.','⚠ Action req.']].map(([v,c,l,t]) => (
                       <div key={l as string} className="lp-kpi">
                         <div className="lp-kpi-val" style={{color:c as string}}>{v}</div>
                         <div className="lp-kpi-lbl">{l}</div>
@@ -327,7 +322,7 @@ export default function LandingPage() {
                     </div>
                     <div className="lp-chart">
                       <div className="lp-chart-title">🔧 Dernières interventions</div>
-                      {[['#ef4444','Panne vanne solénoïde doseuse','rgba(239,68,68,.1)','#ef4444','CRITIQUE'],['#22c55e','Maintenance préventive compresseur','rgba(168,85,247,.1)','#a855f7','VALIDÉ'],['#3b82f6','Contrôle convoyeur ligne A','rgba(59,130,246,.1)','#3b82f6','EN COURS'],['#f59e0b','Fuite circuit hydraulique CNC','rgba(245,158,11,.1)','#f59e0b','À FAIRE']].map(([dc,title,bg,tc,badge]) => (
+                      {[['#ef4444','Panne vanne solénoïde doseuse','rgba(239,68,68,.1)','#ef4444','CRITIQUE'],['#00d0d8','Maintenance préventive compresseur','rgba(168,85,247,.1)','#a855f7','VALIDÉ'],['#3b82f6','Contrôle convoyeur ligne A','rgba(59,130,246,.1)','#3b82f6','EN COURS'],['#f59e0b','Fuite circuit hydraulique CNC','rgba(245,158,11,.1)','#f59e0b','À FAIRE']].map(([dc,title,bg,tc,badge]) => (
                         <div key={title as string} className="lp-int-item">
                           <div className="lp-int-dot" style={{background:dc as string}}></div>
                           <div className="lp-int-title">{title}</div>
@@ -423,7 +418,7 @@ export default function LandingPage() {
         <section className="lp-section">
           <div className="lp-container">
             <div className="lp-cta-box lp-reveal">
-              <h2 className="lp-cta-title">Prêt pour la<br/><span style={{color:'#22c55e'}}>maintenance intelligente ?</span></h2>
+              <h2 className="lp-cta-title">Prêt pour la<br/><span style={{color:'#00d0d8'}}>maintenance intelligente ?</span></h2>
               <p className="lp-cta-sub">Essai gratuit 30 jours · Aucune carte de crédit · Données hébergées en Europe</p>
               <div style={{display:'flex',justifyContent:'center',gap:14,flexWrap:'wrap'}}>
                 <a href="/auth" className="lp-btn-p" style={{fontSize:16,padding:'16px 32px'}}>Demander une démo gratuite →</a>
@@ -432,7 +427,7 @@ export default function LandingPage() {
               <div style={{marginTop:32,display:'flex',justifyContent:'center',gap:32,flexWrap:'wrap'}}>
                 {['Conforme IFS Food v8','Conforme BRC','RGPD · Hébergé en Europe','Développé en Belgique 🇧🇪'].map(t => (
                   <div key={t} style={{display:'flex',alignItems:'center',gap:8,fontSize:13,color:'#a1a1aa'}}>
-                    <span style={{color:'#22c55e'}}>✓</span> {t}
+                    <span style={{color:'#00d0d8'}}>✓</span> {t}
                   </div>
                 ))}
               </div>
@@ -444,7 +439,7 @@ export default function LandingPage() {
         <footer className="lp-footer">
           <div className="lp-container">
             <div className="lp-footer-inner">
-              <div className="lp-footer-logo">MAINTA<span>FOOD</span></div>
+              <img src="/logo.png" alt="MaintaFood" style={{ height: 28, objectFit: 'contain' }} />
               <div style={{color:'#3f3f46',fontSize:13}}>GMAO agroalimentaire · Version bêta · Belgique 🇧🇪</div>
               <div style={{display:'flex',alignItems:'center',gap:8,fontSize:12,color:'#a1a1aa',background:'#18181b',border:'1px solid rgba(255,255,255,.07)',borderRadius:8,padding:'6px 12px'}}>🛡 IFS · BRC · ISO 22000</div>
             </div>
