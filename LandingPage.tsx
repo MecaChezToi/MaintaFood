@@ -386,11 +386,14 @@ export default function LandingPage() {
                 <div className="lp-price-period">/ mois · HTVA</div>
                 <ul className="lp-price-features">
                   <li>2 utilisateurs</li>
-                  <li>Toutes les fonctionnalités</li>
                   <li>Interventions illimitées</li>
                   <li>Rapports PDF certifiés</li>
-                  <li>Dashboard KPI</li>
+                  <li>Dashboard KPI complet</li>
+                  <li>Gestion du stock</li>
                   <li>Audit IFS/BRC</li>
+                  <li>Maintenance préventive</li>
+                  <li>Plan du site</li>
+                  <li className="na">Multi-sites</li>
                 </ul>
                 <a href="/auth" className="lp-btn-s" style={{width:'100%',justifyContent:'center',textAlign:'center',display:'flex'}}>Commencer</a>
               </div>
@@ -402,11 +405,14 @@ export default function LandingPage() {
                 <div className="lp-price-period">/ mois · HTVA · Résiliable à tout moment</div>
                 <ul className="lp-price-features">
                   <li>8 utilisateurs</li>
-                  <li>Toutes les fonctionnalités</li>
                   <li>Interventions illimitées</li>
                   <li>Rapports PDF certifiés</li>
                   <li>Dashboard KPI complet</li>
+                  <li>Gestion du stock</li>
                   <li>Audit IFS/BRC intégré</li>
+                  <li>Maintenance préventive</li>
+                  <li>Plan du site</li>
+                  <li>Multi-sites</li>
                 </ul>
                 <a href="/auth" className="lp-btn-p" style={{width:'100%',justifyContent:'center',textAlign:'center',display:'flex'}}>Essayer 30 jours gratuit</a>
               </div>
