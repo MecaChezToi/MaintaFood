@@ -28,18 +28,29 @@ export default function AuditPage() {
       setError(null)
     } catch {
       setDocuments([])
-      setError('Stockage Supabase indisponible. Créez le bucket Storage \"intervention-photos\" (non public) dans Supabase → Storage.')
     } finally {
       setLoadingDocs(false)
     }
   }
 
   useEffect(() => {
-    auditApi.getAll().then(data => {
+    // Timeout de sécurité 5s
+    const t = setTimeout(() => setLoading(false), 5000)
+    
+    Promise.race([
+      auditApi.getAll(),
+      new Promise<AuditLog[]>(resolve => setTimeout(() => resolve([]), 5000))
+    ]).then(data => {
       if (data.length > 0) setLogs(data)
       setLoading(false)
-    }).catch(() => setLoading(false))
+      clearTimeout(t)
+    }).catch(() => {
+      setLoading(false)
+      clearTimeout(t)
+    })
+
     loadDocuments()
+    return () => clearTimeout(t)
   }, [])
 
   const actions = useMemo(() => (
@@ -53,7 +64,6 @@ export default function AuditPage() {
       (l.target || '').toLowerCase().includes(q) ||
       (l.detail || '').toLowerCase().includes(q) ||
       (l.user as any)?.name?.toLowerCase().includes(q)
-
     const matchesAction = actionFilter === 'all' || l.action === actionFilter
     return matchesSearch && matchesAction
   })
@@ -76,8 +86,8 @@ export default function AuditPage() {
       }
       await loadDocuments()
     } catch (e: any) {
-      const msg = e.message || 'Impossible d’envoyer le document.'
-      setError(msg.includes('Bucket not found') ? 'Bucket introuvable. Créez le bucket \"intervention-photos\" dans Supabase → Storage.' : msg)
+      const msg = e.message || 'Impossible d\'envoyer le document.'
+      setError(msg.includes('Bucket not found') ? 'Bucket introuvable. Créez le bucket "intervention-photos" dans Supabase → Storage.' : msg)
     } finally {
       setUploading(false)
     }
@@ -110,19 +120,12 @@ export default function AuditPage() {
           {loadingDocs ? (
             <div style={{ color: 'var(--t2)', fontSize: 13 }}>Chargement des documents…</div>
           ) : documents.length === 0 ? (
-            <div className="empty-state" style={{ padding: 22 }}>
-              <span>Aucun document charge</span>
-            </div>
+            <div className="empty-state" style={{ padding: 22 }}><span>Aucun document chargé</span></div>
           ) : (
             <div className="grid-2">
               {documents.map(doc => (
-                <a
-                  key={doc.path}
-                  href={doc.url}
-                  target="_blank"
-                  rel="noreferrer"
-                  style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 14px', background: 'var(--s3)', border: '1px solid var(--b0)', borderRadius: 8, color: 'inherit', textDecoration: 'none' }}
-                >
+                <a key={doc.path} href={doc.url} target="_blank" rel="noreferrer"
+                  style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 14px', background: 'var(--s3)', border: '1px solid var(--b0)', borderRadius: 8, color: 'inherit', textDecoration: 'none' }}>
                   <div style={{ fontSize: 22 }}>📄</div>
                   <div style={{ minWidth: 0, flex: 1 }}>
                     <div style={{ fontSize: 13, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{doc.name}</div>
@@ -143,20 +146,13 @@ export default function AuditPage() {
       </div>
 
       <div style={{ display: 'flex', gap: 6, marginBottom: 16, flexWrap: 'wrap' }}>
-        <button
-          className="btn btn-ghost btn-sm"
-          onClick={() => setActionFilter('all')}
-          style={actionFilter === 'all' ? { borderColor: 'var(--acc)', color: 'var(--acc)', background: 'var(--acc-dim)' } : undefined}
-        >
+        <button className="btn btn-ghost btn-sm" onClick={() => setActionFilter('all')}
+          style={actionFilter === 'all' ? { borderColor: 'var(--acc)', color: 'var(--acc)', background: 'var(--acc-dim)' } : undefined}>
           Tous ({logs.length})
         </button>
         {actions.map(action => (
-          <button
-            key={action}
-            className="btn btn-ghost btn-sm"
-            onClick={() => setActionFilter(action)}
-            style={actionFilter === action ? { borderColor: 'var(--acc)', color: 'var(--acc)', background: 'var(--acc-dim)' } : undefined}
-          >
+          <button key={action} className="btn btn-ghost btn-sm" onClick={() => setActionFilter(action)}
+            style={actionFilter === action ? { borderColor: 'var(--acc)', color: 'var(--acc)', background: 'var(--acc-dim)' } : undefined}>
             {action}
           </button>
         ))}
@@ -164,6 +160,7 @@ export default function AuditPage() {
 
       <div className="card">
         {loading && logs.length === 0 && <div style={{ padding: 40, textAlign: 'center', color: 'var(--t2)' }}>Chargement…</div>}
+        {!loading && filtered.length === 0 && <div className="empty-state"><span style={{ fontSize: 28 }}>📋</span><span>Aucun événement</span></div>}
         {filtered.map(l => {
           const u = l.user as any
           const c = actionColor(l.action)
@@ -172,7 +169,7 @@ export default function AuditPage() {
               <div style={{ fontSize: 10, fontFamily: 'var(--font-mono)', color: 'var(--t2)', whiteSpace: 'nowrap', paddingTop: 2, minWidth: 120 }}>
                 {fmtDT(l.created_at)}
               </div>
-              <div style={{ width: 8, height: 8, borderRadius: '50%', background: c, flexShrink: 0, marginTop: 4, boxShadow: `0 0 4px ${c}` }} />
+              <div style={{ width: 8, height: 8, borderRadius: '50%', background: c, flexShrink: 0, marginTop: 4 }} />
               <div style={{ flex: 1 }}>
                 <div style={{ fontWeight: 500, fontSize: 13, color: c }}>{l.action}</div>
                 <div style={{ fontSize: 12, color: 'var(--t2)', marginTop: 2 }}>
@@ -191,9 +188,6 @@ export default function AuditPage() {
             </div>
           )
         })}
-        {!loading && filtered.length === 0 && (
-          <div className="empty-state"><span style={{ fontSize: 28 }}>📋</span><span>Aucun événement</span></div>
-        )}
       </div>
     </AppLayout>
   )
