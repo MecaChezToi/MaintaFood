@@ -141,6 +141,7 @@ function EquipmentDetailModal({
   canManage: boolean
   onClose: () => void
   onCreateIntervention: (equipment: Equipment) => void
+  interventions?: any[]
   onStatusChange: (equipment: Equipment, status: EqStatus) => Promise<void>
   onLinkPart: (equipment: Equipment, partId: string) => Promise<void>
   onUnlinkPart: (equipment: Equipment, partId: string) => Promise<void>
@@ -276,6 +277,55 @@ function EquipmentDetailModal({
         </div>
 
         <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 14, flex: 1 }}>
+
+          {/* ── KPI Maintenance ── */}
+          {(() => {
+            const eqInts = (interventions || []).filter((i: any) => i.equipment_id === equipment.id)
+            const done = eqInts.filter((i: any) => i.report_duration && i.report_duration > 0)
+            const mttrMin = done.length ? Math.round(done.reduce((s: number, i: any) => s + (i.report_duration || 0), 0) / done.length) : null
+            const mttrStr = mttrMin ? `${Math.floor(mttrMin / 60)}h${String(mttrMin % 60).padStart(2,'0')}` : '—'
+            const sortedDates = eqInts.map((i: any) => new Date(i.created_at).getTime()).sort((a: number, b: number) => a - b)
+            let mtbfDays: number | null = null
+            if (sortedDates.length >= 2) {
+              const gaps = sortedDates.slice(1).map((t: number, i: number) => (t - sortedDates[i]) / 86400000)
+              mtbfDays = Math.round(gaps.reduce((s: number, g: number) => s + g, 0) / gaps.length)
+            }
+            const open = eqInts.filter((i: any) => !['termine','valide'].includes(i.status))
+            const late = open.filter((i: any) => (Date.now() - new Date(i.created_at).getTime()) / 86400000 > 7)
+            const pannes = eqInts.filter((i: any) => i.priority === 'critique' || i.priority === 'haute')
+            const totalDownMin = done.reduce((s: number, i: any) => s + (i.report_duration || 0), 0)
+            const dispo = Math.min(100, Math.round((1 - totalDownMin / (90 * 24 * 60)) * 1000) / 10)
+            const dispoColor = dispo >= 98 ? '#00d0d8' : dispo >= 90 ? '#f59e0b' : '#ff4757'
+            const mtbfColor = !mtbfDays ? 'var(--t3)' : mtbfDays >= 60 ? '#00d0d8' : mtbfDays >= 30 ? '#f59e0b' : '#ff4757'
+            return (
+              <div style={{ background: 'var(--s3)', border: '1px solid rgba(255,255,255,.06)', borderRadius: 10, padding: 14 }}>
+                <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.8px', color: 'var(--t3)', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
+                  📊 Résumé maintenance · {eqInts.length} intervention{eqInts.length > 1 ? 's' : ''} au total
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5,1fr)', gap: 8, marginBottom: 10 }}>
+                  {[
+                    { label: 'MTBF', value: mtbfDays !== null ? `${mtbfDays}j` : '—', color: mtbfColor, sub: 'moy. entre pannes' },
+                    { label: 'MTTR', value: mttrStr, color: '#3c82e8', sub: 'moy. réparation' },
+                    { label: 'OT ouverts', value: open.length, color: open.length > 0 ? '#f59e0b' : '#00d0d8', sub: 'en cours' },
+                    { label: 'En retard', value: late.length, color: late.length > 0 ? '#ff4757' : '#00d0d8', sub: '> 7 jours' },
+                    { label: 'Dispo.', value: `${dispo}%`, color: dispoColor, sub: 'sur 90j' },
+                  ].map(({ label, value, color, sub }) => (
+                    <div key={label} style={{ background: 'rgba(255,255,255,.03)', borderRadius: 8, padding: '8px 10px', textAlign: 'center' }}>
+                      <div style={{ fontSize: 16, fontWeight: 800, color, fontFamily: 'var(--font-mono)', lineHeight: 1 }}>{value}</div>
+                      <div style={{ fontSize: 8, color: 'var(--t3)', marginTop: 3, textTransform: 'uppercase', letterSpacing: '.5px' }}>{label}</div>
+                    </div>
+                  ))}
+                </div>
+                <div style={{ height: 4, background: 'rgba(255,255,255,.05)', borderRadius: 2, overflow: 'hidden' }}>
+                  <div style={{ height: '100%', width: `${dispo}%`, background: dispoColor, borderRadius: 2, transition: 'width .4s' }} />
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 2, fontSize: 9, color: 'var(--t3)', fontFamily: 'var(--font-mono)' }}>
+                  <span>0%</span><span style={{ color: dispo >= 95 ? dispoColor : 'var(--t3)' }}>Objectif 95%</span><span>100%</span>
+                </div>
+              </div>
+            )
+          })()}
+
           <div style={{ background: 'var(--s3)', borderRadius: 10, padding: 14 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
               <span className="badge" style={{ background: `${statusCfg.color}18`, color: statusCfg.color }}>
@@ -1001,7 +1051,7 @@ function EditMachineModal({ equipment, onClose, onSave }: { equipment: Equipment
 export default function PlanPage() {
   const { user } = useAuth()
   const router = useRouter()
-  const { equipments, technicians, loading, reload, reloadInterventions, updateEquipment } = useData()
+  const { equipments, interventions: allInterventions, technicians, loading, reload, reloadInterventions, updateEquipment } = useData()
   const [localEq, setLocalEq] = useState<Equipment[]>([])
   const displayEquipments = localEq.length > 0 ? localEq : equipments
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
@@ -1369,6 +1419,7 @@ Cette action est irréversible.`)) return
         <EquipmentDetailModal
           equipment={selected}
           canManage={canManage}
+          interventions={allInterventions}
           onClose={() => setSelected(null)}
           onCreateIntervention={(equipment) => {
             setSelected(null)
