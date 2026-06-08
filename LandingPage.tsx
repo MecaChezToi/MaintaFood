@@ -107,13 +107,13 @@ export default function LandingPage() {
         .lp-nav-cta:hover { background: #00b0b8 !important; }
 
         /* HERO */
-        .lp-hero { padding: 160px 0 100px; position: relative; overflow: hidden; }
+        .lp-hero { padding: clamp(80px,12vw,160px) 0 clamp(60px,8vw,100px); position: relative; overflow: hidden; }
         .lp-hero::before { content: ''; position: absolute; top: -200px; right: -200px; width: 800px; height: 800px; border-radius: 50%; background: radial-gradient(circle, rgba(124,58,237,.1) 0%, transparent 65%); pointer-events: none; }
         .lp-badge { display: inline-flex; align-items: center; gap: 8px; padding: 8px 16px; border-radius: 999px; background: rgba(0,208,216,.06); border: 1px solid rgba(0,208,216,.25); color: #00d0d8; font-size: 13px; font-weight: 600; margin-bottom: 32px; animation: lp-fadeUp .6s ease both; }
         .lp-badge-dot { width: 7px; height: 7px; border-radius: 50%; background: #00d0d8; animation: lp-pulse 2s infinite; }
         @keyframes lp-pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.5;transform:scale(1.3)} }
         @keyframes lp-fadeUp { from{opacity:0;transform:translateY(24px)} to{opacity:1;transform:translateY(0)} }
-        .lp-h1 { font-family: 'Inter', sans-serif; font-size: 72px; font-weight: 800; line-height: 1.02; letter-spacing: -2px; max-width: 860px; animation: lp-fadeUp .7s .1s ease both; }
+        .lp-h1 { font-family: 'Inter', sans-serif; font-size: clamp(32px, 8vw, 72px); font-weight: 800; line-height: 1.05; letter-spacing: -1px; max-width: 860px; animation: lp-fadeUp .7s .1s ease both; }
         .lp-h1 .green { color: #00d0d8; }
         .lp-h1 .dim { color: #3f3f46; }
         .lp-sub { font-size: 20px; color: #a1a1aa; max-width: 620px; line-height: 1.65; margin-top: 24px; animation: lp-fadeUp .7s .2s ease both; }
@@ -125,11 +125,11 @@ export default function LandingPage() {
 
         /* STATS */
         .lp-stats { display: flex; gap: 40px; margin-top: 56px; animation: lp-fadeUp .7s .4s ease both; flex-wrap: wrap; }
-        .lp-stat-val { font-family: Arial, Helvetica, sans-serif; font-size: 32px; font-weight: 700; color: #00d0d8; }
+        .lp-stat-val { font-family: Arial, Helvetica, sans-serif; font-size: clamp(22px,5vw,32px); font-weight: 700; color: #00d0d8; }
         .lp-stat-lbl { font-size: 13px; color: #a1a1aa; margin-top: 2px; }
 
         /* DASHBOARD PREVIEW */
-        .lp-preview { margin-top: 80px; background: #18181b; border: 1px solid rgba(255,255,255,.12); border-radius: 24px; overflow: hidden; box-shadow: 0 40px 120px rgba(0,0,0,.6); animation: lp-fadeUp .8s .5s ease both; position: relative; }
+        .lp-preview { margin-top: 80px; display: none; } @media(min-width:769px){.lp-preview{display:block; margin-top: 80px; background: #18181b; border: 1px solid rgba(255,255,255,.12); border-radius: 24px; overflow: hidden; box-shadow: 0 40px 120px rgba(0,0,0,.6); animation: lp-fadeUp .8s .5s ease both; position: relative; }
         .lp-preview::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 1px; background: linear-gradient(90deg, transparent, rgba(0,208,216,.4), transparent); }
         .lp-browser { background: #0f0f11; border-bottom: 1px solid rgba(255,255,255,.07); padding: 12px 16px; display: flex; align-items: center; gap: 12px; }
         .lp-dots { display: flex; gap: 6px; }
@@ -157,13 +157,13 @@ export default function LandingPage() {
         .lp-int-badge { font-size: 9px; padding: 2px 7px; border-radius: 10px; font-weight: 700; flex-shrink: 0; }
 
         /* SECTIONS */
-        .lp-section { padding: 100px 0; }
+        .lp-section { padding: clamp(48px,8vw,100px) 0; }
         .lp-section-badge { display: inline-flex; padding: 6px 14px; border-radius: 999px; background: rgba(0,208,216,.06); border: 1px solid rgba(0,208,216,.2); color: #00d0d8; font-size: 12px; font-weight: 600; margin-bottom: 20px; }
-        .lp-section-title { font-family: 'Inter', sans-serif; font-size: 48px; font-weight: 800; letter-spacing: -1.5px; line-height: 1.08; }
+        .lp-section-title { font-family: 'Inter', sans-serif; font-size: clamp(28px,6vw,48px); font-weight: 800; letter-spacing: -1.5px; line-height: 1.08; }
         .lp-section-sub { color: #a1a1aa; font-size: 18px; margin-top: 16px; max-width: 560px; line-height: 1.65; }
 
         /* FEATURES */
-        .lp-features { display: grid; grid-template-columns: repeat(3,1fr); gap: 1px; background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.07); border-radius: 20px; overflow: hidden; margin-top: 60px; }
+        .lp-features { display: grid; grid-template-columns: repeat(3,1fr); grid-template-columns: repeat(auto-fit, minmax(280px,1fr)); gap: 1px; background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.07); border-radius: 20px; overflow: hidden; margin-top: 60px; }
         .lp-feature { background: #111113; padding: 36px 32px; transition: background .2s; }
         .lp-feature:hover { background: #18181b; }
         .lp-feature-icon { width: 44px; height: 44px; border-radius: 10px; background: rgba(0,208,216,.06); border: 1px solid rgba(0,208,216,.2); display: flex; align-items: center; justify-content: center; font-size: 20px; margin-bottom: 20px; }
@@ -172,7 +172,7 @@ export default function LandingPage() {
 
         /* METRICS */
         .lp-metrics { padding: 100px 0; background: linear-gradient(135deg, #111113 0%, #09090b 50%, #111113 100%); border-top: 1px solid rgba(255,255,255,.07); border-bottom: 1px solid rgba(255,255,255,.07); }
-        .lp-metrics-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 1px; background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.07); border-radius: 20px; overflow: hidden; }
+        .lp-metrics-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px,1fr)); gap: 1px; background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.07); border-radius: 20px; overflow: hidden; }
         .lp-metric { background: #111113; padding: 40px 32px; text-align: center; }
         .lp-metric-val { font-family: Arial, Helvetica, sans-serif; font-size: 52px; font-weight: 700; color: #00d0d8; line-height: 1; }
         .lp-metric-unit { font-family: Arial, Helvetica, sans-serif; font-size: 28px; color: #00d0d8; }
