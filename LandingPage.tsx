@@ -340,18 +340,18 @@ export default function LandingPage() {
         </section>
 
         {/* FEATURES */}
-        <section id="features" className="lp-section">
+        <section id="features" style={{padding:'80px 0'}}>
           <div className="lp-container">
             <div className="lp-reveal">
               <div className="lp-section-badge">Fonctionnalités</div>
               <h2 className="lp-section-title">Tout ce dont vous<br/>avez besoin</h2>
             </div>
-            <div className="lp-features lp-reveal">
+            <div className="lp-reveal" style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(260px,1fr))',gap:2,marginTop:48,background:'rgba(255,255,255,.07)',border:'1px solid rgba(255,255,255,.07)',borderRadius:20,overflow:'hidden'}}>
               {[['📊','Dashboard KPI','Taux de conformité IFS, MTBF, durée moyenne — tous vos indicateurs sur un seul écran.'],['🔧','Gestion des interventions','Créez, assignez et suivez vos OT. Rapport multi-étapes avec signature numérique horodatée.'],['📄','Rapports PDF certifiés','Chaque intervention génère un PDF professionnel avec checklist HACCP — prêt pour l\'inspecteur.'],['🛡','Conformité IFS·BRC·ISO','Journal d\'audit horodaté, traçabilité complète, alertes risque alimentaire automatiques.'],['📦','Gestion du magasin','Stocks en temps réel, alertes rupture, localisation par zone, historique des mouvements.'],['📱','100% mobile terrain','Interface optimisée smartphone. Vos techniciens remplissent leurs rapports sur le terrain.']].map(([icon,title,desc]) => (
-                <div key={title as string} className="lp-feature">
-                  <div className="lp-feature-icon">{icon}</div>
-                  <div className="lp-feature-title">{title}</div>
-                  <div className="lp-feature-desc">{desc}</div>
+                <div key={title as string} style={{background:'#111113',padding:'28px 24px'}}>
+                  <div style={{width:44,height:44,borderRadius:10,background:'rgba(0,208,216,.06)',border:'1px solid rgba(0,208,216,.2)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:20,marginBottom:16}}>{icon}</div>
+                  <div style={{fontFamily:"'Inter',sans-serif",fontSize:16,fontWeight:700,color:'#fafafa',marginBottom:8}}>{title}</div>
+                  <div style={{color:'#a1a1aa',fontSize:13,lineHeight:1.6}}>{desc}</div>
                 </div>
               ))}
             </div>
@@ -359,13 +359,16 @@ export default function LandingPage() {
         </section>
 
         {/* METRICS */}
-        <section className="lp-metrics">
+        <section style={{padding:'80px 0',background:'#111113',borderTop:'1px solid rgba(255,255,255,.07)',borderBottom:'1px solid rgba(255,255,255,.07)'}}>
           <div className="lp-container">
-            <div className="lp-metrics-grid lp-reveal">
-              {[['96','%','Taux de conformité moyen'],['163','min','Durée moyenne d\'intervention'],['30','%','Réduction des arrêts ligne'],['5','min','Pour générer un rapport PDF']].map(([val,unit,lbl]) => (
-                <div key={lbl as string} className="lp-metric">
-                  <div><span className="lp-metric-val" data-target={val}>{val}</span><span className="lp-metric-unit">{unit}</span></div>
-                  <div className="lp-metric-lbl">{lbl}</div>
+            <div className="lp-reveal" style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(140px,1fr))',gap:2,background:'rgba(255,255,255,.07)',border:'1px solid rgba(255,255,255,.07)',borderRadius:20,overflow:'hidden'}}>
+              {[['96','%','Taux de conformité moyen'],['163','min','Durée moy. intervention'],['30','%','Réduction arrêts ligne'],['5','min','Pour générer un PDF']].map(([val,unit,lbl]) => (
+                <div key={lbl as string} style={{background:'#111113',padding:'32px 24px',textAlign:'center'}}>
+                  <div>
+                    <span style={{fontFamily:'Arial,sans-serif',fontSize:48,fontWeight:700,color:'#00d0d8',lineHeight:1}}>{val}</span>
+                    <span style={{fontFamily:'Arial,sans-serif',fontSize:24,color:'#00d0d8'}}>{unit}</span>
+                  </div>
+                  <div style={{color:'#a1a1aa',fontSize:13,marginTop:8}}>{lbl}</div>
                 </div>
               ))}
             </div>
