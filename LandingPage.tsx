@@ -380,68 +380,69 @@ export default function LandingPage() {
               <h2 className="lp-section-title">Transparent, sans surprise</h2>
               <p className="lp-section-sub" style={{margin:'16px auto 0',textAlign:'center'}}>Pas de frais cachés. Résiliable à tout moment.</p>
             </div>
-            <div className="lp-pricing-grid lp-reveal">
+
+            {/* Cards — styles 100% inline */}
+            <div className="lp-reveal" style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(260px,1fr))',gap:20,marginTop:48}}>
+
               {/* Starter */}
-              <div className="lp-price-card">
-                <div className="lp-price-name">Starter</div>
-                <div className="lp-price-val">99<span>€</span></div>
-                <div className="lp-price-period">/ mois · HTVA</div>
-                <ul className="lp-price-features">
-                  <li>2 utilisateurs</li>
-                  <li>Interventions illimitées</li>
-                  <li>Rapports PDF certifiés</li>
-                  <li>Dashboard KPI complet</li>
-                  <li>Gestion du stock</li>
-                  <li>Audit IFS/BRC</li>
-                  <li>Maintenance préventive</li>
-                  <li>Plan du site</li>
-                  <li className="na">Multi-sites</li>
-                </ul>
-                <a href="/auth" className="lp-btn-s" style={{width:'100%',justifyContent:'center',textAlign:'center',display:'flex'}}>Commencer</a>
+              <div style={{background:'#18181b',border:'1px solid rgba(255,255,255,.08)',borderRadius:20,padding:28,display:'flex',flexDirection:'column',gap:0}}>
+                <div style={{fontFamily:"'Inter',sans-serif",fontSize:18,fontWeight:700,color:'#fafafa',marginBottom:8}}>Starter</div>
+                <div style={{fontFamily:'Arial,sans-serif',fontSize:42,fontWeight:800,color:'#fafafa',lineHeight:1}}>99<span style={{fontSize:16,color:'#a1a1aa',fontFamily:'sans-serif',fontWeight:400}}>€</span></div>
+                <div style={{fontSize:12,color:'#a1a1aa',margin:'8px 0 20px'}}>/ mois · HTVA</div>
+                <div style={{display:'flex',flexDirection:'column',gap:8,marginBottom:24,flex:1}}>
+                  {['2 utilisateurs','Interventions illimitées','Rapports PDF certifiés','Dashboard KPI complet','Gestion du stock','Audit IFS/BRC','Maintenance préventive','Plan du site'].map(f=>(
+                    <div key={f} style={{display:'flex',alignItems:'center',gap:8,fontSize:13,color:'#a1a1aa'}}>
+                      <span style={{color:'#00d0d8',fontWeight:700,flexShrink:0}}>✓</span>{f}
+                    </div>
+                  ))}
+                  <div style={{display:'flex',alignItems:'center',gap:8,fontSize:13,color:'#3f3f46'}}>
+                    <span style={{flexShrink:0}}>—</span>Multi-sites
+                  </div>
+                </div>
+                <a href="/auth" style={{display:'flex',alignItems:'center',justifyContent:'center',padding:'12px 20px',borderRadius:10,border:'1px solid rgba(255,255,255,.12)',color:'#fafafa',textDecoration:'none',fontSize:14,fontWeight:600,transition:'all .15s'}}>Commencer</a>
               </div>
+
               {/* PME */}
-              <div className="lp-price-card featured">
-                <div className="lp-price-badge">⭐ PME</div>
-                <div className="lp-price-name">PME</div>
-                <div className="lp-price-val">149<span>€</span></div>
-                <div className="lp-price-period">/ mois · HTVA · Résiliable à tout moment</div>
-                <ul className="lp-price-features">
-                  <li>8 utilisateurs</li>
-                  <li>Interventions illimitées</li>
-                  <li>Rapports PDF certifiés</li>
-                  <li>Dashboard KPI complet</li>
-                  <li>Gestion du stock</li>
-                  <li>Audit IFS/BRC intégré</li>
-                  <li>Maintenance préventive</li>
-                  <li>Plan du site</li>
-                  <li>Multi-sites</li>
-                </ul>
-                <a href="/auth" className="lp-btn-p" style={{width:'100%',justifyContent:'center',textAlign:'center',display:'flex'}}>Essayer 30 jours gratuit</a>
+              <div style={{background:'#111113',border:'2px solid #00d0d8',borderRadius:20,padding:28,display:'flex',flexDirection:'column',gap:0,position:'relative',overflow:'hidden'}}>
+                <div style={{position:'absolute',top:0,left:0,right:0,height:3,background:'#00d0d8'}}></div>
+                <div style={{display:'inline-flex',alignItems:'center',gap:6,padding:'4px 12px',borderRadius:999,background:'#00d0d8',color:'#000',fontSize:11,fontWeight:700,marginBottom:16,alignSelf:'flex-start'}}>⭐ PME</div>
+                <div style={{fontFamily:"'Inter',sans-serif",fontSize:18,fontWeight:700,color:'#fafafa',marginBottom:8}}>PME</div>
+                <div style={{fontFamily:'Arial,sans-serif',fontSize:42,fontWeight:800,color:'#fafafa',lineHeight:1}}>149<span style={{fontSize:16,color:'#a1a1aa',fontFamily:'sans-serif',fontWeight:400}}>€</span></div>
+                <div style={{fontSize:12,color:'#a1a1aa',margin:'8px 0 20px'}}>/ mois · HTVA · Résiliable à tout moment</div>
+                <div style={{display:'flex',flexDirection:'column',gap:8,marginBottom:24,flex:1}}>
+                  {['8 utilisateurs','Interventions illimitées','Rapports PDF certifiés','Dashboard KPI complet','Gestion du stock','Audit IFS/BRC intégré','Maintenance préventive','Plan du site','Multi-sites'].map(f=>(
+                    <div key={f} style={{display:'flex',alignItems:'center',gap:8,fontSize:13,color:'#a1a1aa'}}>
+                      <span style={{color:'#00d0d8',fontWeight:700,flexShrink:0}}>✓</span>{f}
+                    </div>
+                  ))}
+                </div>
+                <a href="/auth" style={{display:'flex',alignItems:'center',justifyContent:'center',padding:'12px 20px',borderRadius:10,background:'#00d0d8',color:'#000',textDecoration:'none',fontSize:14,fontWeight:700,transition:'all .15s'}}>Essayer 30 jours gratuit</a>
               </div>
+
               {/* Enterprise */}
-              <div className="lp-price-card">
-                <div className="lp-price-name">Enterprise</div>
-                <div className="lp-price-val" style={{fontSize:32,paddingTop:8}}>Sur devis</div>
-                <div className="lp-price-period">contactez-nous</div>
-                <ul className="lp-price-features">
-                  <li>15+ utilisateurs</li>
-                  <li>Multi-sites</li>
-                  <li>Toutes les fonctionnalités</li>
-                  <li>API & intégrations</li>
-                  <li>SSO</li>
-                  <li>Support dédié</li>
-                </ul>
-                <a href="mailto:contact@maintafood.io" className="lp-btn-s" style={{width:'100%',justifyContent:'center',textAlign:'center',display:'flex'}}>Nous contacter</a>
+              <div style={{background:'#18181b',border:'1px solid rgba(255,255,255,.08)',borderRadius:20,padding:28,display:'flex',flexDirection:'column',gap:0}}>
+                <div style={{fontFamily:"'Inter',sans-serif",fontSize:18,fontWeight:700,color:'#fafafa',marginBottom:8}}>Enterprise</div>
+                <div style={{fontFamily:'Arial,sans-serif',fontSize:32,fontWeight:800,color:'#fafafa',lineHeight:1,paddingTop:6}}>Sur devis</div>
+                <div style={{fontSize:12,color:'#a1a1aa',margin:'8px 0 20px'}}>contactez-nous</div>
+                <div style={{display:'flex',flexDirection:'column',gap:8,marginBottom:24,flex:1}}>
+                  {['15+ utilisateurs','Multi-sites','Toutes les fonctionnalités','API & intégrations','SSO','Support dédié'].map(f=>(
+                    <div key={f} style={{display:'flex',alignItems:'center',gap:8,fontSize:13,color:'#a1a1aa'}}>
+                      <span style={{color:'#00d0d8',fontWeight:700,flexShrink:0}}>✓</span>{f}
+                    </div>
+                  ))}
+                </div>
+                <a href="mailto:contact@maintafood.io" style={{display:'flex',alignItems:'center',justifyContent:'center',padding:'12px 20px',borderRadius:10,border:'1px solid rgba(255,255,255,.12)',color:'#fafafa',textDecoration:'none',fontSize:14,fontWeight:600,transition:'all .15s'}}>Nous contacter</a>
               </div>
             </div>
+
             {/* Mise en service */}
-            <div className="lp-reveal" style={{marginTop:32,padding:'28px 36px',background:'rgba(0,208,216,.04)',border:'1px solid rgba(0,208,216,.15)',borderRadius:16,display:'flex',alignItems:'center',justifyContent:'space-between',flexWrap:'wrap',gap:20}}>
+            <div className="lp-reveal" style={{marginTop:24,padding:'24px 28px',background:'rgba(0,208,216,.04)',border:'1px solid rgba(0,208,216,.15)',borderRadius:16,display:'flex',alignItems:'center',justifyContent:'space-between',flexWrap:'wrap',gap:16}}>
               <div>
-                <div style={{fontSize:18,fontWeight:700,marginBottom:6}}>🚀 Mise en service</div>
-                <div style={{fontSize:14,color:'#a1a1aa',maxWidth:520,lineHeight:1.6}}>Import des équipements, configuration, formation et accompagnement au démarrage inclus.</div>
+                <div style={{fontSize:17,fontWeight:700,color:'#fafafa',marginBottom:6}}>🚀 Mise en service</div>
+                <div style={{fontSize:13,color:'#a1a1aa',maxWidth:520,lineHeight:1.6}}>Import des équipements, configuration, formation et accompagnement au démarrage inclus.</div>
               </div>
               <div style={{textAlign:'right',flexShrink:0}}>
-                <div style={{fontFamily:'Arial,Helvetica,sans-serif',fontSize:36,fontWeight:700,color:'#00d0d8',lineHeight:1}}>1 250€</div>
+                <div style={{fontFamily:'Arial,Helvetica,sans-serif',fontSize:34,fontWeight:700,color:'#00d0d8',lineHeight:1}}>1 250€</div>
                 <div style={{fontSize:12,color:'#a1a1aa',marginTop:4}}>HTVA · paiement unique</div>
               </div>
             </div>
