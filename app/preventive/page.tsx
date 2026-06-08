@@ -94,10 +94,12 @@ export default function PreventivePage() {
   const [doneModal, setDoneModal] = useState<PreventiveUpcoming | null>(null)
   const [toast, setToast] = useState<string | null>(null)
 
-  const load = async () => {
-    setLoading(true)
-    const data = await preventiveApi.getUpcoming(180)
-    setUpcoming(data.sort((a, b) => URGENCY_ORDER[a.urgency] - URGENCY_ORDER[b.urgency]))
+  const load = async (silent = false) => {
+    if (!silent) setLoading(true)
+    try {
+      const data = await preventiveApi.getUpcoming(180)
+      if (data.length > 0) setUpcoming(data.sort((a, b) => URGENCY_ORDER[a.urgency] - URGENCY_ORDER[b.urgency]))
+    } catch {}
     setLoading(false)
   }
 
@@ -184,7 +186,7 @@ export default function PreventivePage() {
         ))}
       </div>
 
-      {loading && <div style={{ textAlign: 'center', padding: 40, color: 'var(--t2)' }}>Chargement...</div>}
+      {loading && upcoming.length === 0 && <div style={{ textAlign: 'center', padding: 40, color: 'var(--t2)' }}>Chargement...</div>}
 
       {/* Vue Liste */}
       {!loading && viewMode === 'list' && (
@@ -242,7 +244,7 @@ export default function PreventivePage() {
       )}
 
       {/* Vue Calendrier */}
-      {!loading && viewMode === 'calendar' && (
+      {viewMode === 'calendar' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
           {byMonth.length === 0 && (
             <div className="empty-state"><span>✅</span><span>Aucune maintenance planifiée</span></div>
@@ -298,7 +300,7 @@ export default function PreventivePage() {
           onClose={() => setDoneModal(null)}
           onSave={() => {
             showToast('Maintenance enregistrée — audit mis à jour')
-            load()
+            load(true)
           }}
         />
       )}

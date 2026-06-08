@@ -22,7 +22,11 @@ export default function UsersPage() {
 
   useEffect(() => {
     Promise.all([profilesApi.getAll(), interventionsApi.getAll()])
-      .then(([p, i]) => { setProfiles(p); setInterventions(i); setLoading(false) })
+      .then(([p, i]) => {
+        if (p.length > 0) setProfiles(p)
+        if (i.length > 0) setInterventions(i)
+        setLoading(false)
+      }).catch(() => setLoading(false))
   }, [])
 
   if (!user) return null
@@ -78,6 +82,9 @@ export default function UsersPage() {
         </div>
       )}
 
+      {loading && profiles.length === 0 && (
+        <div style={{ padding: 40, textAlign: 'center', color: 'var(--t2)' }}>Chargement…</div>
+      )}
       <div className="grid-2">
         {profiles.map(p => {
           const rc = ROLE_CONFIG[p.role]

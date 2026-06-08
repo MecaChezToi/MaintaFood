@@ -35,7 +35,10 @@ export default function AuditPage() {
   }
 
   useEffect(() => {
-    auditApi.getAll().then(data => { setLogs(data); setLoading(false) })
+    auditApi.getAll().then(data => {
+      if (data.length > 0) setLogs(data)
+      setLoading(false)
+    }).catch(() => setLoading(false))
     loadDocuments()
   }, [])
 
@@ -160,7 +163,7 @@ export default function AuditPage() {
       </div>
 
       <div className="card">
-        {loading && <div style={{ padding: 40, textAlign: 'center', color: 'var(--t2)' }}>Chargement…</div>}
+        {loading && logs.length === 0 && <div style={{ padding: 40, textAlign: 'center', color: 'var(--t2)' }}>Chargement…</div>}
         {filtered.map(l => {
           const u = l.user as any
           const c = actionColor(l.action)
