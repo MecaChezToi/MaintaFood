@@ -76,6 +76,79 @@ export default function AuditPage() {
     return '#7a8599'
   }
 
+  const exportPDF = () => {
+    const now = new Date().toLocaleDateString('fr-FR')
+    const html = `<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>Journal d'audit — MaintaFood</title>
+<style>
+  body { font-family: Arial, sans-serif; font-size: 12px; color: #1a1a1a; margin: 0; padding: 0; }
+  .header { background: #0a0b0c; color: #fff; padding: 24px 32px; display: flex; align-items: center; justify-content: space-between; }
+  .header-title { font-size: 20px; font-weight: 700; }
+  .header-title span { color: #00d0d8; }
+  .header-sub { font-size: 11px; color: #7a8599; margin-top: 4px; }
+  .header-date { font-size: 11px; color: #7a8599; text-align: right; }
+  .badge { background: #0a2a2b; border: 1px solid #00d0d8; color: #00d0d8; padding: 6px 16px; margin: 16px 32px; border-radius: 6px; font-size: 11px; display: inline-block; }
+  .section { padding: 8px 32px; }
+  .section-title { font-size: 13px; font-weight: 700; margin-bottom: 8px; color: #1a1a1a; border-bottom: 1px solid #e5e7eb; padding-bottom: 4px; }
+  table { width: 100%; border-collapse: collapse; font-size: 11px; }
+  th { background: #f3f4f6; padding: 6px 10px; text-align: left; font-weight: 600; color: #374151; border-bottom: 2px solid #e5e7eb; font-size: 10px; text-transform: uppercase; letter-spacing: .5px; }
+  td { padding: 7px 10px; border-bottom: 1px solid #f3f4f6; vertical-align: top; }
+  tr:nth-child(even) td { background: #f9fafb; }
+  .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; }
+  .footer { margin-top: 24px; padding: 12px 32px; border-top: 1px solid #e5e7eb; font-size: 10px; color: #9ca3af; display: flex; justify-content: space-between; }
+  @media print { body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
+</style>
+</head>
+<body>
+<div class="header">
+  <div>
+    <div class="header-title">MAINTA<span>FOOD</span></div>
+    <div class="header-sub">GMAO Agroalimentaire · Journal d'audit</div>
+  </div>
+  <div class="header-date">
+    Exporté le ${now}<br/>
+    ${filtered.length} événement(s)${actionFilter !== 'all' ? ' · Filtre : ' + actionFilter : ''}${search ? ' · Recherche : "' + search + '"' : ''}
+  </div>
+</div>
+<div class="badge">🛡️ Journal horodaté non modifiable — conforme IFS Food v8 · BRC · ISO 22000</div>
+<div class="section">
+  <table>
+    <thead>
+      <tr>
+        <th style="width:130px">Date / Heure</th>
+        <th style="width:160px">Action</th>
+        <th>Cible</th>
+        <th>Détail</th>
+        <th style="width:80px">Utilisateur</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${filtered.map(l => {
+        const u = l.user as any
+        const c = actionColor(l.action)
+        return '<tr><td style="font-family:monospace;font-size:10px;color:#6b7280">' + fmtDT(l.created_at) + '</td><td><span class="dot" style="background:' + c + '"></span><strong style="color:' + c + '">' + l.action + '</strong></td><td>' + (l.target || '—') + '</td><td style="color:#6b7280">' + (l.detail || '—') + '</td><td style="font-size:10px">' + (u?.name?.split(' ')[0] || '—') + '</td></tr>'
+      }).join('')}
+    </tbody>
+  </table>
+</div>
+<div class="footer">
+  <span>MaintaFood GMAO · Agroalimentaire · Belgique 🇧🇪</span>
+  <span>Document généré automatiquement — ${now}</span>
+</div>
+</body>
+</html>`
+
+    const win = window.open('', '_blank')
+    if (!win) return
+    win.document.write(html)
+    win.document.close()
+    win.focus()
+    setTimeout(() => { win.print() }, 500)
+  }
+
   const uploadDocuments = async (files: FileList | null) => {
     if (!files || files.length === 0) return
     setUploading(true)
@@ -95,8 +168,17 @@ export default function AuditPage() {
 
   return (
     <AppLayout>
-      <div className="page-title">Journal d'audit</div>
-      <div className="page-sub">Traçabilité complète — conforme IFS Food v8 · BRC · ISO 22000</div>
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 4 }}>
+        <div>
+          <div className="page-title">Journal d'audit</div>
+          <div className="page-sub">Traçabilité complète — conforme IFS Food v8 · BRC · ISO 22000</div>
+        </div>
+        {logs.length > 0 && (
+          <button onClick={exportPDF} className="btn btn-ghost btn-sm" style={{ gap: 6 }}>
+            📄 Exporter PDF
+          </button>
+        )}
+      </div>
 
       <div style={{ padding: '10px 14px', background: 'rgba(0,208,216,.06)', border: '1px solid rgba(0,208,216,.2)', borderRadius: 8, fontSize: 12.5, color: '#00d0d8', display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
         🛡️ Ce journal est horodaté et non modifiable — disponible pour inspection par les auditeurs qualité.
