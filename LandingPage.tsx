@@ -453,18 +453,21 @@ export default function LandingPage() {
         </section>
 
         {/* CTA */}
-        <section className="lp-section">
+        <section style={{padding:'80px 0'}}>
           <div className="lp-container">
-            <div className="lp-cta-box lp-reveal">
-              <h2 className="lp-cta-title">Prêt pour la<br/><span style={{color:'#00d0d8'}}>maintenance intelligente ?</span></h2>
-              <p className="lp-cta-sub">Essai gratuit 30 jours · Aucune carte de crédit · Données hébergées en Europe</p>
-              <div style={{display:'flex',justifyContent:'center',gap:14,flexWrap:'wrap'}}>
-                <a href="/auth" className="lp-btn-p" style={{fontSize:16,padding:'16px 32px'}}>Demander une démo gratuite →</a>
-                <a href="/auth" className="lp-btn-s" style={{fontSize:16,padding:'16px 32px'}}>Se connecter</a>
+            <div className="lp-reveal" style={{background:'#18181b',border:'1px solid rgba(255,255,255,.12)',borderRadius:24,padding:'clamp(32px,6vw,72px) clamp(20px,6vw,60px)',textAlign:'center',position:'relative',overflow:'hidden'}}>
+              <div style={{position:'absolute',top:-200,left:'50%',transform:'translateX(-50%)',width:600,height:400,borderRadius:'50%',background:'radial-gradient(circle, rgba(124,58,237,.15) 0%, transparent 65%)',pointerEvents:'none'}}></div>
+              <h2 style={{fontFamily:"'Inter',sans-serif",fontSize:'clamp(28px,6vw,52px)',fontWeight:800,letterSpacing:-1,lineHeight:1.05,marginBottom:20,color:'#fafafa'}}>
+                Prêt pour la<br/><span style={{color:'#00d0d8'}}>maintenance intelligente ?</span>
+              </h2>
+              <p style={{color:'#a1a1aa',fontSize:'clamp(14px,2vw,18px)',marginBottom:40}}>Essai gratuit 30 jours · Aucune carte de crédit · Données hébergées en Europe</p>
+              <div style={{display:'flex',justifyContent:'center',gap:14,flexWrap:'wrap',marginBottom:32}}>
+                <a href="/auth" style={{display:'inline-flex',alignItems:'center',gap:8,padding:'14px 28px',borderRadius:12,background:'#00d0d8',color:'#000',fontWeight:700,fontSize:15,textDecoration:'none'}}>Demander une démo gratuite →</a>
+                <a href="/auth" style={{display:'inline-flex',alignItems:'center',gap:8,padding:'14px 28px',borderRadius:12,border:'1px solid rgba(255,255,255,.12)',color:'#fafafa',fontWeight:600,fontSize:15,textDecoration:'none'}}>Se connecter</a>
               </div>
-              <div style={{marginTop:32,display:'flex',justifyContent:'center',gap:32,flexWrap:'wrap'}}>
+              <div style={{display:'flex',justifyContent:'center',gap:'clamp(12px,3vw,32px)',flexWrap:'wrap'}}>
                 {['Conforme IFS Food v8','Conforme BRC','RGPD · Hébergé en Europe','Développé en Belgique 🇧🇪'].map(t => (
-                  <div key={t} style={{display:'flex',alignItems:'center',gap:8,fontSize:13,color:'#a1a1aa'}}>
+                  <div key={t} style={{display:'flex',alignItems:'center',gap:6,fontSize:13,color:'#a1a1aa'}}>
                     <span style={{color:'#00d0d8'}}>✓</span> {t}
                   </div>
                 ))}
@@ -474,10 +477,10 @@ export default function LandingPage() {
         </section>
 
         {/* FOOTER */}
-        <footer className="lp-footer">
+        <footer style={{borderTop:'1px solid rgba(255,255,255,.07)',padding:'40px 0'}}>
           <div className="lp-container">
-            <div className="lp-footer-inner">
-              <img src="/logo.png" alt="MaintaFood" style={{ height: 28, objectFit: 'contain' }} />
+            <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',flexWrap:'wrap',gap:16}}>
+              <img src="/logo.png" alt="MaintaFood" style={{height:32,objectFit:'contain'}} />
               <div style={{color:'#3f3f46',fontSize:13}}>GMAO agroalimentaire · Version bêta · Belgique 🇧🇪</div>
               <div style={{display:'flex',alignItems:'center',gap:8,fontSize:12,color:'#a1a1aa',background:'#18181b',border:'1px solid rgba(255,255,255,.07)',borderRadius:8,padding:'6px 12px'}}>🛡 IFS · BRC · ISO 22000</div>
             </div>
