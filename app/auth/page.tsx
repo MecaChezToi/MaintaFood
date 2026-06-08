@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/components/layout/AuthProvider'
+import { supabase } from '@/lib/supabase'
 
 export default function AuthPage() {
   const { signIn, user, loading } = useAuth()
@@ -11,6 +12,9 @@ export default function AuthPage() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [signingIn, setSigningIn] = useState(false)
+  const [mode, setMode] = useState<'login' | 'reset'>('login')
+  const [resetSent, setResetSent] = useState(false)
+  const [resetting, setResetting] = useState(false)
 
   useEffect(() => {
     if (!loading && user) router.replace('/dashboard')
@@ -25,6 +29,21 @@ export default function AuthPage() {
       setError('Email ou mot de passe incorrect.')
       setSigningIn(false)
     }
+  }
+
+  const handleReset = async () => {
+    if (!email) { setError('Entrez votre adresse email.'); return }
+    setResetting(true)
+    setError('')
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/auth/reset`,
+    })
+    if (error) {
+      setError('Impossible d\'envoyer l\'email. Vérifiez l\'adresse.')
+    } else {
+      setResetSent(true)
+    }
+    setResetting(false)
   }
 
   if (!loading && user) return null
@@ -66,35 +85,87 @@ export default function AuthPage() {
           <div style={{ marginBottom: 22, display: 'flex', justifyContent: 'center' }}>
             <img src="/icons/icon-192.png" alt="MaintaFood" style={{ height: 52, width: 52, objectFit: 'contain', borderRadius: 14 }} />
           </div>
-          <div style={{ fontSize: 18, fontWeight: 800, marginBottom: 4, textAlign: 'center' }}>Connexion</div>
-          <div style={{ fontSize: 12.5, color: 'var(--t2)', marginBottom: 22, textAlign: 'center' }}>
-            Connectez-vous à votre espace MaintaFood.
-          </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-              <label className="form-label">Email</label>
-              <input
-                className="form-input" type="email" placeholder="votre@email.fr"
-                value={email} onChange={e => setEmail(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && handleLogin()}
-              />
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-              <label className="form-label">Mot de passe</label>
-              <input
-                className="form-input" type="password" placeholder="••••••••"
-                value={password} onChange={e => setPassword(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && handleLogin()}
-              />
-            </div>
+          {mode === 'login' ? (
+            <>
+              <div style={{ fontSize: 18, fontWeight: 800, marginBottom: 4, textAlign: 'center' }}>Connexion</div>
+              <div style={{ fontSize: 12.5, color: 'var(--t2)', marginBottom: 22, textAlign: 'center' }}>
+                Connectez-vous à votre espace MaintaFood.
+              </div>
 
-            {error && <div className="auth-err">⚠ {error}</div>}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                  <label className="form-label">Email</label>
+                  <input
+                    className="form-input" type="email" placeholder="votre@email.fr"
+                    value={email} onChange={e => setEmail(e.target.value)}
+                    onKeyDown={e => e.key === 'Enter' && handleLogin()}
+                  />
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <label className="form-label">Mot de passe</label>
+                    <button
+                      onClick={() => { setMode('reset'); setError(''); setResetSent(false) }}
+                      style={{ background: 'none', border: 'none', color: '#00d0d8', fontSize: 11, cursor: 'pointer', padding: 0, fontFamily: 'inherit' }}>
+                      Mot de passe oublié ?
+                    </button>
+                  </div>
+                  <input
+                    className="form-input" type="password" placeholder="••••••••"
+                    value={password} onChange={e => setPassword(e.target.value)}
+                    onKeyDown={e => e.key === 'Enter' && handleLogin()}
+                  />
+                </div>
 
-            <button className="btn btn-primary" onClick={handleLogin} disabled={signingIn} style={{ opacity: signingIn ? .7 : 1 }}>
-              {signingIn ? 'Connexion en cours...' : 'Se connecter →'}
-            </button>
-          </div>
+                {error && <div className="auth-err">⚠ {error}</div>}
+
+                <button className="btn btn-primary" onClick={handleLogin} disabled={signingIn} style={{ opacity: signingIn ? .7 : 1 }}>
+                  {signingIn ? 'Connexion en cours...' : 'Se connecter →'}
+                </button>
+              </div>
+            </>
+          ) : (
+            <>
+              <div style={{ fontSize: 18, fontWeight: 800, marginBottom: 4, textAlign: 'center' }}>Mot de passe oublié</div>
+              <div style={{ fontSize: 12.5, color: 'var(--t2)', marginBottom: 22, textAlign: 'center' }}>
+                Entrez votre email pour recevoir un lien de réinitialisation.
+              </div>
+
+              {resetSent ? (
+                <div style={{ padding: '16px', background: 'rgba(0,208,216,.08)', border: '1px solid rgba(0,208,216,.2)', borderRadius: 8, textAlign: 'center' }}>
+                  <div style={{ fontSize: 28, marginBottom: 8 }}>📬</div>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: '#00d0d8', marginBottom: 6 }}>Email envoyé !</div>
+                  <div style={{ fontSize: 12, color: 'var(--t2)', lineHeight: 1.6 }}>
+                    Vérifiez votre boîte mail et cliquez sur le lien pour réinitialiser votre mot de passe.
+                  </div>
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                    <label className="form-label">Email</label>
+                    <input
+                      className="form-input" type="email" placeholder="votre@email.fr"
+                      value={email} onChange={e => setEmail(e.target.value)}
+                      onKeyDown={e => e.key === 'Enter' && handleReset()}
+                    />
+                  </div>
+
+                  {error && <div className="auth-err">⚠ {error}</div>}
+
+                  <button className="btn btn-primary" onClick={handleReset} disabled={resetting} style={{ opacity: resetting ? .7 : 1 }}>
+                    {resetting ? 'Envoi...' : 'Envoyer le lien →'}
+                  </button>
+                </div>
+              )}
+
+              <button
+                onClick={() => { setMode('login'); setError(''); setResetSent(false) }}
+                style={{ width: '100%', marginTop: 12, background: 'none', border: 'none', color: 'var(--t2)', fontSize: 12, cursor: 'pointer', fontFamily: 'inherit', padding: '6px 0' }}>
+                ← Retour à la connexion
+              </button>
+            </>
+          )}
         </div>
       </div>
     </div>
