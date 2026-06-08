@@ -97,16 +97,18 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
       lastLoadRef.current = Date.now()
 
-      setState({
-        equipments: equipments as Equipment[],
-        interventions: interventions as Intervention[],
-        technicians: (profiles as Profile[]).filter(p => p.active !== false),
-        parts: parts as Part[],
-        siteConfig: siteConfig as SiteConfig | null,
+      // Merge avec l'état existant — ne jamais effacer les données déjà affichées
+      setState(s => ({
+        ...s,
+        equipments: (equipments as Equipment[]).length > 0 ? equipments as Equipment[] : s.equipments,
+        interventions: (interventions as Intervention[]).length > 0 ? interventions as Intervention[] : s.interventions,
+        technicians: (profiles as Profile[]).filter(p => p.active !== false).length > 0 ? (profiles as Profile[]).filter(p => p.active !== false) : s.technicians,
+        parts: (parts as Part[]).length > 0 ? parts as Part[] : s.parts,
+        siteConfig: siteConfig as SiteConfig | null ?? s.siteConfig,
         loading: false,
         lastLoad: lastLoadRef.current,
         isOffline: false,
-      })
+      }))
 
       // Sauvegarder en cache offline
       if (equipments.length > 0) offlineCache.saveEquipments(equipments).catch(() => {})
