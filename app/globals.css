@@ -16,8 +16,8 @@
   --t1: #e4e8f0;
   --t2: #7a8599;
   --t3: #3a4055;
-  --acc: #00c896;
-  --acc-dim: rgba(0,200,150,0.12);
+  --acc: #00d0d8;
+  --acc-dim: rgba(0,208,216,0.12);
   --red: #ff4757;
   --yel: #ffa502;
   --blu: #3c82e8;
@@ -110,7 +110,7 @@ input:-webkit-autofill:focus {
   content: '';
   position: absolute;
   inset: 0;
-  background: radial-gradient(ellipse 60% 60% at 30% 40%, rgba(0, 200, 150, .07), transparent);
+  background: radial-gradient(ellipse 60% 60% at 30% 40%, rgba(0, 208, 216, .07), transparent);
   pointer-events: none;
 }
 .auth-right {
@@ -203,7 +203,7 @@ input:-webkit-autofill:focus {
   white-space: nowrap;
 }
 .btn-primary { background: var(--acc); color: #000; }
-.btn-primary:hover { background: #00e0a8; transform: translateY(-1px); }
+.btn-primary:hover { background: #00b8c0; transform: translateY(-1px); }
 .btn-ghost { background: transparent; color: var(--t2); border: 1px solid var(--b1); }
 .btn-ghost:hover { border-color: var(--b2); color: var(--t1); }
 .btn-danger { background: transparent; color: var(--red); border: 1px solid rgba(255,71,87,.25); }
@@ -236,7 +236,7 @@ input:-webkit-autofill:focus {
 }
 .form-input:focus, .form-select:focus, .form-textarea:focus {
   border-color: var(--acc);
-  box-shadow: 0 0 0 2px rgba(0,200,150,.1);
+  box-shadow: 0 0 0 2px rgba(0,208,216,.1);
 }
 .form-textarea { resize: vertical; min-height: 80px; line-height: 1.5; }
 .form-select option { background: var(--s3); }
