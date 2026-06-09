@@ -88,48 +88,7 @@ function DonutChart({ segments }: { segments: { value: number; color: string; la
   )
 }
 
-// ── Conformity Ring ─────────────────────────────────────────
-function ConformityRing({ rate, done }: { rate: number; done: number }) {
-  const r = 38
-  const circ = 2 * Math.PI * r
-  const dash = (rate / 100) * circ
-  const color = rate >= 95 ? '#00d0d8' : rate >= 80 ? '#f59e0b' : '#ff4757'
-  const label = rate >= 95 ? 'Conforme IFS/BRC' : rate >= 80 ? 'À surveiller' : 'Sous le seuil'
-  return (
-    <div style={{
-      background: 'var(--s1)', border: `1px solid ${color}33`, borderRadius: 12,
-      padding: 18, display: 'flex', alignItems: 'center', gap: 18,
-      boxShadow: `0 0 24px ${color}18`,
-    }}>
-      <div style={{ position: 'relative', flexShrink: 0 }}>
-        <svg width={96} height={96} viewBox="0 0 96 96">
-          <circle cx={48} cy={48} r={r} fill="none" stroke="rgba(255,255,255,.05)" strokeWidth={10} />
-          <circle cx={48} cy={48} r={r} fill="none"
-            stroke={color} strokeWidth={10}
-            strokeDasharray={`${dash} ${circ - dash}`}
-            strokeLinecap="round"
-            style={{ transform: 'rotate(-90deg)', transformOrigin: '48px 48px', transition: 'all .6s ease' }}
-          />
-          <text x={48} y={44} textAnchor="middle" fill={color} fontSize={20} fontWeight={800} fontFamily="var(--font-mono)">{rate}%</text>
-          <text x={48} y={58} textAnchor="middle" fill="var(--t3)" fontSize={9} fontFamily="var(--font-mono)">CONFORM.</text>
-        </svg>
-      </div>
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.8px', color, fontFamily: 'var(--font-mono)', marginBottom: 4 }}>
-          🛡️ Conformité IFS/BRC
-        </div>
-        <div style={{ fontSize: 22, fontWeight: 800, color, fontFamily: 'var(--font-mono)', lineHeight: 1, marginBottom: 6 }}>{rate}%</div>
-        <div style={{ fontSize: 11, color: 'var(--t2)', marginBottom: 8 }}>{label} · {done} rapport{done > 1 ? 's' : ''} signé{done > 1 ? 's' : ''}</div>
-        <div style={{ height: 5, background: 'rgba(255,255,255,.06)', borderRadius: 3, overflow: 'hidden' }}>
-          <div style={{ height: '100%', width: `${rate}%`, background: color, borderRadius: 3, transition: 'width .6s ease' }} />
-        </div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 3, fontSize: 9, color: 'var(--t3)', fontFamily: 'var(--font-mono)' }}>
-          <span>0%</span><span style={{ color: rate >= 95 ? color : 'var(--t3)' }}>Objectif 95%</span><span>100%</span>
-        </div>
-      </div>
-    </div>
-  )
-}
+// ── (conformité supprimée) ───────────────────────────────────
 
 // ── Equipment Carousel ──────────────────────────────────────
 function EquipmentCarousel({ equipments, interventions }: { equipments: Equipment[]; interventions: Intervention[] }) {
@@ -275,11 +234,6 @@ export default function DashboardPage() {
   const foodAlerts = interventions.filter(i => i.food_impact && i.status !== 'valide')
   const pannes = equipments.filter(e => e.status === 'panne')
 
-  // Calcul conformité
-  const done = interventions.filter(i => i.report_verdict)
-  const conforme = done.filter(i => i.report_verdict === 'conforme').length
-  const conformRate = done.length ? Math.round((conforme / done.length) * 100) : 0
-
   // Durée moyenne
   const withDuration = interventions.filter(i => i.report_duration && i.report_duration > 0)
   const avgDur = withDuration.length
@@ -289,7 +243,7 @@ export default function DashboardPage() {
   // Valeur stock
   const stockVal = stock.reduce((s, p) => s + (p.qty * (p.price || 0)), 0)
 
-  // KPIs selon rôle (Conformité affichée séparément pour admin)
+  // KPIs
   const kpis = isTech ? [
     { value: myOT.length, label: 'Mes interventions', sub: `${myOT.filter(i => i.status === 'a_faire').length} à faire`, color: '#00d0d8', icon: '🔧' },
     { value: myOT.filter(i => i.status === 'en_cours').length, label: 'En cours', sub: 'interventions actives', color: '#3c82e8', icon: '⚡' },
@@ -299,6 +253,7 @@ export default function DashboardPage() {
     { value: equipments.length, label: 'Équipements', sub: `${pannes.length} en panne`, color: '#00d0d8', icon: '⚙️' },
     { value: interventions.filter(i => i.status === 'a_faire').length, label: 'OT en attente', sub: 'à planifier', color: '#f59e0b', icon: '📋' },
     { value: foodAlerts.length, label: 'Alertes alim.', sub: 'risques non clôturés', color: foodAlerts.length > 0 ? '#ff4757' : '#00d0d8', icon: '🚨' },
+    { value: interventions.filter(i => i.report_verdict).length, label: 'Rapports signés', sub: 'PDF générés', color: '#a855f7', icon: '📄' },
   ]
 
   // Barres mensuelles (6 derniers mois)
@@ -369,15 +324,15 @@ export default function DashboardPage() {
 
       {/* KPI Cards */}
       {loading ? (
-        <div style={{ display: 'grid', gridTemplateColumns: isTech ? 'repeat(2,1fr)' : 'repeat(2,1fr)', gap: 12, marginBottom: 20 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: 12, marginBottom: 20 }}>
           {[1,2,3,4].map(i => (
             <div key={i} style={{ height: 96, borderRadius: 12, background: 'rgba(255,255,255,.02)', border: '1px solid var(--b0)', animation: 'pulse 1.5s infinite' }} />
           ))}
         </div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: isTech ? 'repeat(2,1fr)' : 'repeat(2,1fr)', gap: 12, marginBottom: 20 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: 12, marginBottom: 20 }}>
           {kpis.map((k, i) => <KpiCard key={i} {...k} />)}
-          {!isTech && <ConformityRing rate={conformRate} done={done.length} />}
+          
         </div>
       )}
 
