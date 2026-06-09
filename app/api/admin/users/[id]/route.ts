@@ -38,7 +38,6 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   if (!name) return NextResponse.json({ error: 'Nom requis.' }, { status: 400 })
   if (!['admin', 'chef', 'technician'].includes(role)) return NextResponse.json({ error: 'Rôle invalide.' }, { status: 400 })
 
-  // Vérifier que le user cible est dans la même organisation
   const { data: target } = await supabase
     .from('profiles')
     .select('organization_id')
@@ -56,7 +55,6 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
 
   if (error) return NextResponse.json({ error: error.message }, { status: 400 })
 
-  // Sync organization_members
   await supabase
     .from('organization_members')
     .update({ role })
@@ -73,7 +71,6 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
   const requester = await authenticate(req, supabase)
   if (!requester) return NextResponse.json({ error: 'Accès refusé.' }, { status: 403 })
 
-  // Vérifier même organisation
   const { data: target } = await supabase
     .from('profiles')
     .select('organization_id')
@@ -84,7 +81,11 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
     return NextResponse.json({ error: 'Accès refusé.' }, { status: 403 })
   }
 
-  // Supprimer le compte Auth (cascade sur profiles via trigger)
+  // Nettoyer les FK avant suppression
+  await supabase.from('organization_members').delete().eq('user_id', params.id)
+  await supabase.from('profiles').delete().eq('id', params.id)
+
+  // Supprimer le compte Auth
   const { error } = await supabase.auth.admin.deleteUser(params.id)
   if (error) return NextResponse.json({ error: error.message }, { status: 400 })
 
