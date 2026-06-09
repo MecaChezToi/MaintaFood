@@ -695,54 +695,8 @@ export default function StorePage() {
       {/* Layout principal */}
       <div className="store-layout">
 
-        {/* TABLE (desktop) + CARTES (mobile) + HISTORIQUE */}
+        {/* TABLE + HISTORIQUE */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-
-          {/* Vue cartes mobile */}
-          {isMobile ? (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {loading && <div style={{ textAlign: 'center', padding: 32, color: 'var(--t2)' }}>Chargement…</div>}
-              {!loading && filtered.length === 0 && (
-                <div style={{ textAlign: 'center', padding: 32, color: 'var(--t2)', opacity: .5 }}>🔍 Aucune pièce trouvée</div>
-              )}
-              {filtered.map(p => {
-                const low = p.qty <= p.min_qty
-                const sel = selected?.id === p.id
-                return (
-                  <div key={p.id} onClick={() => setSelected(sel ? null : p)}
-                    style={{ background: sel ? 'rgba(0,208,216,.06)' : 'var(--s1)', border: `1px solid ${low ? 'rgba(255,71,87,.25)' : sel ? 'rgba(0,208,216,.3)' : 'rgba(255,255,255,.06)'}`, borderRadius: 10, padding: 14, cursor: 'pointer' }}>
-                    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10 }}>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                          <LocBadge loc={p.location || undefined} />
-                          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--acc)' }}>{p.ref}</span>
-                        </div>
-                        <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 2 }}>{p.name}</div>
-                        <div style={{ fontSize: 11, color: 'var(--t2)' }}>{p.category}{p.supplier ? ` · ${p.supplier}` : ''}</div>
-                        {low && <div style={{ fontSize: 10, color: 'var(--red)', marginTop: 4, fontWeight: 600 }}>⚠ STOCK CRITIQUE</div>}
-                      </div>
-                      <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                        <div style={{ fontSize: 22, fontWeight: 800, fontFamily: 'var(--font-mono)', color: low ? 'var(--red)' : 'var(--t1)', lineHeight: 1 }}>{p.qty}</div>
-                        <div style={{ fontSize: 10, color: 'var(--t2)', marginBottom: 4 }}>{p.unit}</div>
-                        <StockBar qty={p.qty} minQty={p.min_qty} />
-                      </div>
-                    </div>
-                    {canEdit && typeof p.price === 'number' && p.price > 0 && (
-                      <div style={{ marginTop: 8, fontSize: 11, color: 'var(--t2)', fontFamily: 'var(--font-mono)' }}>
-                        HTVA : {p.price.toFixed(2)} € · TVAC : {(p.price * (1 + VAT_RATE)).toFixed(2)} €
-                      </div>
-                    )}
-                    <div style={{ display: 'flex', gap: 6, marginTop: 10 }} onClick={e => e.stopPropagation()}>
-                      <button onClick={() => setShowAdj(p)} className="btn btn-ghost btn-sm" style={{ flex: 1, fontSize: 12 }}>
-                        {canEdit ? '± Ajuster stock' : '📤 Déclarer consommation'}
-                      </button>
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          ) : (
-          /* Vue tableau desktop */
           <div className="card">
             <div style={{ overflowX: 'auto' }}>
               <table className="tbl" style={{ minWidth: 580 }}>
@@ -765,7 +719,7 @@ export default function StorePage() {
                   {filtered.map(p => {
                     const low = p.qty <= p.min_qty
                     const sel = selected?.id === p.id
-                    const machines = (p.equipments ?? []).map((e: any) => e.name)
+                    const machines = (p.equipments ?? []).map(e => e.name)
                     const machinesLabel = machines.length > 0 ? machines.join(' · ') : '—'
                     return (
                       <tr key={p.id}
@@ -778,7 +732,9 @@ export default function StorePage() {
                           <div style={{ fontSize: 10, color: 'var(--t2)' }}>{p.category}</div>
                           {low && <div style={{ fontSize: 9, color: 'var(--red)', fontFamily: 'var(--font-mono)' }}>⚠ CRITIQUE</div>}
                         </td>
-                        <td style={{ fontSize: 11.5, color: 'var(--t2)', maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{machinesLabel}</td>
+                        <td style={{ fontSize: 11.5, color: 'var(--t2)', maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {machinesLabel}
+                        </td>
                         <td>
                           <div style={{ fontSize: 12.5, fontWeight: 500, maxWidth: 130, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.supplier || '—'}</div>
                           {p.supplier_ref && <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--t2)' }}>{p.supplier_ref}</div>}
@@ -794,8 +750,10 @@ export default function StorePage() {
                         {canEdit && <td style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--t2)' }} onClick={e => e.stopPropagation()}>{typeof p.price === 'number' && p.price > 0 ? `${(Number(p.price) * (1 + VAT_RATE)).toFixed(2)} €` : '—'}</td>}
                         <td onClick={e => e.stopPropagation()}>
                           <div style={{ display: 'flex', gap: 5 }}>
-                            <button onClick={() => setSelected(p)} className="btn btn-ghost btn-xs">📍</button>
-                            <button onClick={() => setShowAdj(p)} className="btn btn-ghost btn-xs">{canEdit ? '±' : '📤'}</button>
+                            <button onClick={() => { setSelected(p); }} className="btn btn-ghost btn-xs">📍</button>
+                            <button onClick={() => setShowAdj(p)} className="btn btn-ghost btn-xs">
+                              {canEdit ? '±' : '📤'}
+                            </button>
                           </div>
                         </td>
                       </tr>
@@ -805,7 +763,6 @@ export default function StorePage() {
               </table>
             </div>
           </div>
-          )}
 
           {/* Historique mouvements */}
           <div className="card">
