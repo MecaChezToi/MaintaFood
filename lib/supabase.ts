@@ -1,5 +1,4 @@
 import { createClient } from '@supabase/supabase-js'
-import { networkStatus, pendingWrites } from '@/lib/offlineDb'
 import type {
   Profile, Organization, Equipment, Part, Intervention,
   InterventionComment, InterventionPhoto, InterventionPart,
