@@ -1,7 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  output: 'standalone',
-  // Optimisations images Supabase Storage
+  // output: 'standalone',  ← commente ou supprime cette ligne
   images: {
     remotePatterns: [
       {
