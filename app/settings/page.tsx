@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import AppLayout from '@/components/layout/AppLayout'
 import { useAuth } from '@/components/layout/AuthProvider'
-import { siteConfigApi } from '@/lib/supabase'
+import { siteConfigApi, equipmentsApi, interventionsApi, partsApi, profilesApi, preventiveApi } from '@/lib/supabase'
 import type { SiteConfig } from '@/types'
 
 export default function SettingsPage() {
@@ -13,6 +13,7 @@ export default function SettingsPage() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const isAdmin = user?.role === 'admin'
+  const [exporting, setExporting] = useState(false)
 
   useEffect(() => { siteConfigApi.get().then(setConfig) }, [])
 
@@ -32,6 +33,105 @@ export default function SettingsPage() {
   }
 
   const s = (k: keyof SiteConfig, v: string) => setConfig(c => c ? { ...c, [k]: v } : c)
+
+  const exportExcel = async () => {
+    setExporting(true)
+    try {
+      const [equipments, interventions, parts, profiles, preventive] = await Promise.all([
+        equipmentsApi.getAll(),
+        interventionsApi.getAll(),
+        partsApi.getAll(),
+        profilesApi.getAll(),
+        preventiveApi.getUpcoming(365),
+      ])
+
+      const now = new Date().toLocaleDateString('fr-FR')
+      const siteName = config?.name || 'MaintaFood'
+
+      // Générer CSV multi-feuilles simulé en HTML table → Excel
+      const sheets = [
+        {
+          name: 'Équipements',
+          headers: ['Nom','Zone','Localisation','Catégorie','Statut','N° Série','Fabricant','Date installation','Prochaine inspection','Zone alimentaire'],
+          rows: equipments.map(e => [
+            e.name, e.zone||'—', e.location||'—', e.category||'—', e.status,
+            e.serial||'—', (e as any).manufacturer||'—', (e as any).installation_date||'—',
+            e.next_inspection||'—', e.food_safe ? 'Oui' : 'Non'
+          ])
+        },
+        {
+          name: 'Interventions',
+          headers: ['Titre','Machine','Statut','Priorité','Technicien','Créé le','Signé le','Durée (min)','Verdict','Actions','Observations'],
+          rows: interventions.map(i => [
+            i.title, (i.equipment as any)?.name||'—', i.status, i.priority,
+            (i.technician as any)?.name||'—',
+            i.created_at ? new Date(i.created_at).toLocaleDateString('fr-FR') : '—',
+            i.signed_at ? new Date(i.signed_at).toLocaleDateString('fr-FR') : '—',
+            i.report_duration||'—', i.report_verdict||'—',
+            i.report_actions||'—', i.report_observations||'—'
+          ])
+        },
+        {
+          name: 'Stock pièces',
+          headers: ['Référence','Désignation','Catégorie','Unité','Stock actuel','Stock min.','Prix HTVA','Fournisseur','Réf. fournisseur','Emplacement','Alerte critique'],
+          rows: parts.map(p => [
+            p.ref, p.name, p.category||'—', p.unit, p.qty, p.min_qty,
+            p.price||'—', p.supplier||'—', p.supplier_ref||'—',
+            p.location||'—', p.qty <= p.min_qty ? 'OUI' : 'non'
+          ])
+        },
+        {
+          name: 'Utilisateurs',
+          headers: ['Nom','Rôle','Actif','Créé le'],
+          rows: profiles.map(p => [
+            p.name, p.role, p.active ? 'Oui' : 'Non',
+            p.created_at ? new Date(p.created_at).toLocaleDateString('fr-FR') : '—'
+          ])
+        },
+        {
+          name: 'Planning préventif',
+          headers: ['Machine','Zone','Tâche','Fréquence (j)','Dernière exécution','Prochaine échéance','Statut urgence','Durée estimée (min)','Arrêt requis'],
+          rows: preventive.map(p => [
+            p.equipment_name||'—', p.equipment_zone||'—', p.task_name||'—',
+            p.interval_days||'—',
+            p.last_done_at ? new Date(p.last_done_at).toLocaleDateString('fr-FR') : 'Jamais',
+            p.next_due_at ? new Date(p.next_due_at).toLocaleDateString('fr-FR') : '—',
+            p.urgency||'—', p.estimated_minutes||'—', p.requires_stop ? 'Oui' : 'Non'
+          ])
+        },
+      ]
+
+      const toHtml = (sheet: any) => `
+        <h2 style="font-family:Arial;font-size:14px;margin:20px 0 8px;color:#0a0b0c">${sheet.name} — ${siteName} — Exporté le ${now}</h2>
+        <table border="1" cellpadding="5" cellspacing="0" style="font-family:Arial;font-size:11px;border-collapse:collapse;width:100%">
+          <thead><tr style="background:#0a0b0c;color:#fff">${sheet.headers.map((h: string) => `<th style="padding:6px 10px;text-align:left">${h}</th>`).join('')}</tr></thead>
+          <tbody>${sheet.rows.map((row: any[], ri: number) =>
+            `<tr style="background:${ri%2===0?'#fff':'#f9fafb'}">${row.map(cell =>
+              `<td style="padding:5px 10px;border:1px solid #e5e7eb">${cell ?? '—'}</td>`
+            ).join('')}</tr>`
+          ).join('')}</tbody>
+        </table><br/>
+      `
+
+      const html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
+<head><meta charset="UTF-8"><!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets>${
+  sheets.map(s => `<x:ExcelWorksheet><x:Name>${s.name}</x:Name><x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions></x:ExcelWorksheet>`).join('')
+}</x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]--></head>
+<body>${sheets.map(toHtml).join('')}</body></html>`
+
+      const blob = new Blob([html], { type: 'application/vnd.ms-excel;charset=utf-8' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `maintafood-export-${new Date().toISOString().split('T')[0]}.xls`
+      a.click()
+      URL.revokeObjectURL(url)
+    } catch (e: any) {
+      alert('Erreur export : ' + (e.message || 'Impossible d'exporter les données.'))
+    } finally {
+      setExporting(false)
+    }
+  }
 
   return (
     <AppLayout>
@@ -102,6 +202,27 @@ export default function SettingsPage() {
               </div>
             </div>
           </div>
+
+          {isAdmin && (
+          <div className="card" style={{ border: '1px solid rgba(124,58,237,.2)', background: 'rgba(124,58,237,.03)' }}>
+            <div style={{ padding: 18 }}>
+              <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 6 }}>📤 Export des données</div>
+              <div style={{ fontSize: 12.5, color: 'var(--t2)', lineHeight: 1.7, marginBottom: 14 }}>
+                Exportez toutes vos données en un fichier Excel — équipements, interventions, stock, utilisateurs et planning préventif. Utile pour archiver ou migrer vers un autre système.
+              </div>
+              <button
+                onClick={exportExcel}
+                disabled={exporting}
+                style={{ width: '100%', background: '#7c3aed', color: '#fff', border: 'none', borderRadius: 6, padding: '10px 16px', fontSize: 13, fontWeight: 600, cursor: exporting ? 'wait' : 'pointer', opacity: exporting ? .7 : 1, fontFamily: 'var(--font-outfit)' }}
+              >
+                {exporting ? '⏳ Génération en cours...' : '⬇️ Télécharger tout en Excel'}
+              </button>
+              <div style={{ fontSize: 10, color: 'var(--t3)', marginTop: 8, fontFamily: 'var(--font-mono)' }}>
+                5 feuilles : Équipements · Interventions · Stock · Utilisateurs · Planning préventif
+              </div>
+            </div>
+          </div>
+          )}
 
           <div className="card" style={{ border: '1px solid rgba(0,208,216,.15)', background: 'rgba(0,208,216,.03)' }}>
             <div style={{ padding: 18 }}>
