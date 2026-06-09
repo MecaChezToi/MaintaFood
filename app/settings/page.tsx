@@ -127,7 +127,7 @@ export default function SettingsPage() {
       a.click()
       URL.revokeObjectURL(url)
     } catch (e: any) {
-      alert('Erreur export : ' + (e.message || 'Impossible d'exporter les données.'))
+      alert('Erreur export : ' + (e.message || "Impossible d'exporter les données."))
     } finally {
       setExporting(false)
     }
