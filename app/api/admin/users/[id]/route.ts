@@ -82,6 +82,9 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
   }
 
   // Nettoyer les FK avant suppression
+  await supabase.from('interventions').update({ technician_id: null }).eq('technician_id', params.id)
+  await supabase.from('interventions').update({ created_by: null }).eq('created_by', params.id)
+  await supabase.from('audit_logs').delete().eq('user_id', params.id)
   await supabase.from('organization_members').delete().eq('user_id', params.id)
   await supabase.from('profiles').delete().eq('id', params.id)
 
