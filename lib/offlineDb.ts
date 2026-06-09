@@ -197,7 +197,7 @@ export const pendingWrites = {
 }
 
 // ─── DÉTECTION RÉSEAU (iOS compatible) ───────────────────────
-let _isOnline = typeof navigator !== 'undefined' ? navigator.onLine : true
+let _isOnline = true // optimiste par défaut — le ping corrigera si offline
 const _listeners: Array<(online: boolean) => void> = []
 
 // Ping actif toutes les 10s pour détecter le réseau sur iOS
@@ -221,14 +221,22 @@ if (typeof window !== 'undefined') {
     _listeners.forEach(cb => cb(false))
   })
 
-  // Ping actif toutes les 10s (iOS PWA)
+  // Ping immédiat au démarrage pour corriger l'état initial
+  pingNetwork().then(online => {
+    if (online !== _isOnline) {
+      _isOnline = online
+      _listeners.forEach(cb => cb(online))
+    }
+  })
+
+  // Ping actif toutes les 15s (iOS PWA)
   setInterval(async () => {
     const online = await pingNetwork()
     if (online !== _isOnline) {
       _isOnline = online
       _listeners.forEach(cb => cb(online))
     }
-  }, 10000)
+  }, 15000)
 }
 
 export const networkStatus = {
