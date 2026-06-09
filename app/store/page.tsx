@@ -523,6 +523,9 @@ export default function StorePage() {
   .footer{margin-top:24px;padding:12px 32px;border-top:1px solid #e5e7eb;font-size:10px;color:#9ca3af;display:flex;justify-content:space-between}
   @media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
 </style></head><body>
+<div style="text-align:right;padding:12px 32px 0;background:#0a0b0c">
+  <button onclick="window.close()" style="background:#00d0d8;color:#000;border:none;border-radius:6px;padding:8px 20px;font-size:12px;font-weight:700;cursor:pointer;font-family:Arial">✕ Fermer</button>
+</div>
 <div class="header">
   <div><div class="header-title">MAINTA<span>FOOD</span></div><div class="sub">GMAO Agroalimentaire · Bon de commande pièces</div></div>
   <div style="text-align:right;font-size:11px;color:#7a8599">Généré le ${now}<br/>${all_critical.length} référence(s) en stock critique</div>
