@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useAuth } from '@/components/layout/AuthProvider'
 import { useData } from '@/lib/DataStore'
 import AppLayout from '@/components/layout/AppLayout'
@@ -229,6 +229,79 @@ export default function DashboardPage() {
   if (!user) return null
 
   const isTech = user.role === 'technician'
+
+  // ── Scanner QR ──────────────────────────────────────────────
+  const [showScanner, setShowScanner] = useState(false)
+  const [scanError, setScanError] = useState<string | null>(null)
+  const videoRef = useRef<HTMLVideoElement>(null)
+  const streamRef = useRef<MediaStream | null>(null)
+  const rafRef = useRef<number | null>(null)
+
+  const stopCamera = useCallback(() => {
+    if (rafRef.current) cancelAnimationFrame(rafRef.current)
+    streamRef.current?.getTracks().forEach(t => t.stop())
+    streamRef.current = null
+  }, [])
+
+  const startScanner = useCallback(async () => {
+    setScanError(null)
+    setShowScanner(true)
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
+      streamRef.current = stream
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream
+        await videoRef.current.play()
+        scanFrame()
+      }
+    } catch {
+      setScanError('Caméra inaccessible. Vérifiez les permissions.')
+    }
+  }, [])
+
+  const scanFrame = useCallback(() => {
+    const video = videoRef.current
+    if (!video || video.readyState < 2) { rafRef.current = requestAnimationFrame(scanFrame); return }
+    const canvas = document.createElement('canvas')
+    canvas.width = video.videoWidth
+    canvas.height = video.videoHeight
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return
+    ctx.drawImage(video, 0, 0)
+    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
+    // BarcodeDetector natif si dispo
+    if ('BarcodeDetector' in window) {
+      const detector = new (window as any).BarcodeDetector({ formats: ['qr_code'] })
+      detector.detect(canvas).then((codes: any[]) => {
+        if (codes.length > 0) handleQRResult(codes[0].rawValue)
+        else rafRef.current = requestAnimationFrame(scanFrame)
+      }).catch(() => { rafRef.current = requestAnimationFrame(scanFrame) })
+    } else {
+      // Fallback jsQR
+      import('jsqr').then(({ default: jsQR }) => {
+        const code = jsQR(imageData.data, canvas.width, canvas.height)
+        if (code) handleQRResult(code.data)
+        else rafRef.current = requestAnimationFrame(scanFrame)
+      })
+    }
+  }, [])
+
+  const handleQRResult = useCallback((raw: string) => {
+    stopCamera()
+    setShowScanner(false)
+    // Le QR contient soit un UUID d'équipement, soit une URL /eq/[id]
+    const match = raw.match(/\/eq\/([a-zA-Z0-9-]+)/) || raw.match(/^([a-f0-9-]{36})$/)
+    if (match) {
+      window.location.href = `/eq/${match[1]}`
+    } else {
+      setScanError(`QR non reconnu : ${raw}`)
+    }
+  }, [stopCamera])
+
+  useEffect(() => {
+    if (!showScanner) stopCamera()
+    return () => stopCamera()
+  }, [showScanner, stopCamera])
   const myOT = isTech ? interventions.filter(i => i.technician_id === user.id) : interventions
   const lowStock = stock.filter(p => p.qty <= p.min_qty)
   const foodAlerts = interventions.filter(i => i.food_impact && i.status !== 'valide')
@@ -299,16 +372,75 @@ export default function DashboardPage() {
             {siteConfig && <span style={{ marginLeft: 8, color: 'var(--t3)' }}>· {siteConfig.name}</span>}
           </div>
         </div>
-        <a href="/interventions" style={{
-          display: 'inline-flex', alignItems: 'center', gap: 6,
-          background: '#00d0d8', color: '#000', borderRadius: 8,
-          padding: '9px 16px', fontWeight: 700, fontSize: 13,
-          textDecoration: 'none', flexShrink: 0,
-          boxShadow: '0 0 20px rgba(0,208,216,.25)',
-        }}>
-          <span style={{ fontSize: 16, lineHeight: 1 }}>+</span> Nouvel OT
-        </a>
-      </div>
+        <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+          <button
+            onClick={startScanner}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 7, padding: '9px 16px',
+              background: 'rgba(0,208,216,.1)', border: '1px solid rgba(0,208,216,.3)',
+              borderRadius: 10, color: '#00d0d8', fontWeight: 600, fontSize: 13,
+              cursor: 'pointer', flexShrink: 0, transition: 'background .15s',
+            }}
+            onMouseEnter={e => (e.currentTarget.style.background = 'rgba(0,208,216,.18)')}
+            onMouseLeave={e => (e.currentTarget.style.background = 'rgba(0,208,216,.1)')}
+          >
+            <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+              <rect x="3" y="3" width="5" height="5"/><rect x="16" y="3" width="5" height="5"/>
+              <rect x="3" y="16" width="5" height="5"/><path d="M21 16h-3a2 2 0 0 0-2 2v3"/><path d="M21 21v.01"/><path d="M12 7v3a2 2 0 0 1-2 2H7"/><path d="M3 12h.01"/><path d="M12 3h.01"/><path d="M12 16v.01"/><path d="M16 12h1"/><path d="M21 12v.01"/>
+            </svg>
+            Scanner
+          </button>
+          <a href="/interventions" style={{
+            display: 'inline-flex', alignItems: 'center', gap: 6,
+            background: '#00d0d8', color: '#000', borderRadius: 10,
+            padding: '9px 16px', fontWeight: 700, fontSize: 13,
+            textDecoration: 'none', flexShrink: 0,
+            boxShadow: '0 0 20px rgba(0,208,216,.25)',
+          }}>
+            <span style={{ fontSize: 16, lineHeight: 1 }}>+</span> Nouvel OT
+          </a>
+        </div>
+
+      {/* Erreur scan hors modal */}
+      {scanError && !showScanner && (
+        <div style={{ marginBottom: 16, padding: '10px 14px', background: 'rgba(255,71,87,.08)', border: '1px solid rgba(255,71,87,.25)', borderRadius: 8, fontSize: 13, color: '#ff4757', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          {scanError}
+          <button onClick={() => setScanError(null)} style={{ background: 'none', border: 'none', color: '#ff4757', cursor: 'pointer', fontSize: 16 }}>×</button>
+        </div>
+      )}
+
+      {/* Modal Scanner */}
+      {showScanner && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 1000, background: 'rgba(0,0,0,.85)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16 }}>
+          <div style={{ fontSize: 15, fontWeight: 700, color: '#fff' }}>Scanner une machine</div>
+          <div style={{ position: 'relative', width: 300, height: 300, borderRadius: 16, overflow: 'hidden', border: '2px solid rgba(0,208,216,.5)', boxShadow: '0 0 0 4000px rgba(0,0,0,.6)' }}>
+            <video ref={videoRef} style={{ width: '100%', height: '100%', objectFit: 'cover' }} playsInline muted />
+            {/* Viseur */}
+            <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
+              {['top-left','top-right','bottom-left','bottom-right'].map(pos => (
+                <div key={pos} style={{
+                  position: 'absolute',
+                  width: 28, height: 28,
+                  ...(pos.includes('top') ? { top: 16 } : { bottom: 16 }),
+                  ...(pos.includes('left') ? { left: 16 } : { right: 16 }),
+                  borderTop: pos.includes('top') ? '3px solid #00d0d8' : 'none',
+                  borderBottom: pos.includes('bottom') ? '3px solid #00d0d8' : 'none',
+                  borderLeft: pos.includes('left') ? '3px solid #00d0d8' : 'none',
+                  borderRight: pos.includes('right') ? '3px solid #00d0d8' : 'none',
+                  borderRadius: pos === 'top-left' ? '6px 0 0 0' : pos === 'top-right' ? '0 6px 0 0' : pos === 'bottom-left' ? '0 0 0 6px' : '0 0 6px 0',
+                }} />
+              ))}
+              <div style={{ position: 'absolute', left: 28, right: 28, top: '50%', height: 2, background: 'rgba(0,208,216,.6)', animation: 'scan-line 2s ease-in-out infinite' }} />
+            </div>
+            {scanError && (
+              <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,.7)', padding: 16, textAlign: 'center', fontSize: 13, color: '#ff4757' }}>{scanError}</div>
+            )}
+          </div>
+          <div style={{ fontSize: 12, color: 'rgba(255,255,255,.5)' }}>Pointez la caméra vers le QR code de la machine</div>
+          <button onClick={() => setShowScanner(false)} className="btn btn-ghost">Annuler</button>
+          <style>{`@keyframes scan-line { 0%,100% { transform: translateY(-60px); opacity: .4 } 50% { transform: translateY(60px); opacity: 1 } }`}</style>
+        </div>
+      )}
 
       {/* Alertes */}
       {foodAlerts.length > 0 && (
