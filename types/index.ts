@@ -105,6 +105,7 @@ export interface Intervention {
   report_verdict: 'conforme' | 'non_conforme' | 'a_surveiller' | null
   report_hygiene: boolean
   report_cleaning: boolean
+  due_date: string | null
   signed_at: string | null
   signed_by: string | null
   created_at: string
@@ -238,10 +239,10 @@ export const STATUS_CONFIG: Record<IntStatus, { label: string; color: string; bg
   valide:   { label: 'Validé',   color: '#a855f7', bg: 'rgba(168,85,247,.12)' },
 }
 
-export const PRIORITY_CONFIG: Record<Priority, { label: string; color: string }> = {
-  normale:  { label: 'Normale',  color: '#8b9bb4' },
-  haute:    { label: 'Haute',    color: '#f59e0b' },
-  critique: { label: 'Critique', color: '#ef4444' },
+export const PRIORITY_CONFIG: Record<Priority, { label: string; color: string; bg: string }> = {
+  normale:  { label: 'Normale',  color: '#8b9bb4', bg: 'rgba(139,155,180,.12)' },
+  haute:    { label: 'Haute',    color: '#f59e0b', bg: 'rgba(245,158,11,.12)'  },
+  critique: { label: 'Critique', color: '#ef4444', bg: 'rgba(239,68,68,.12)'   },
 }
 
 export const EQ_STATUS_CONFIG: Record<EqStatus, { label: string; color: string }> = {

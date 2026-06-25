@@ -7,42 +7,69 @@ import { interventionsApi, auditApi, photosApi, partsApi } from '@/lib/supabase'
 import { offlineInterventionsApi } from '@/lib/offlineApi'
 import { networkStatus } from '@/lib/offlineDb'
 import { useData } from '@/lib/DataStore'
-import type { Intervention, Equipment, Profile, Part, SiteConfig } from '@/types'
+import type { Intervention, Equipment, Profile, Part, SiteConfig, Priority } from '@/types'
 import { STATUS_CONFIG, PRIORITY_CONFIG } from '@/types'
 
 const fmt   = (d: string) => d ? new Date(d).toLocaleDateString('fr-FR') : '—'
 const fmtDT = (d: string) => d ? new Date(d).toLocaleString('fr-FR', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' }) : '—'
 
+// Calcul du délai restant avant due_date
+const getDueLabel = (due_date: string | null): { label: string; color: string } | null => {
+  if (!due_date) return null
+  const diff = Math.ceil((new Date(due_date).getTime() - Date.now()) / 86400000)
+  if (diff < 0)  return { label: `Dépassé de ${Math.abs(diff)}j`, color: '#ef4444' }
+  if (diff === 0) return { label: 'Aujourd\'hui !', color: '#ef4444' }
+  if (diff <= 2)  return { label: `J-${diff}`, color: '#f59e0b' }
+  if (diff <= 7)  return { label: `J-${diff}`, color: '#f59e0b' }
+  return { label: `J-${diff}`, color: '#8b9bb4' }
+}
+
 const openPdf = (interv: Intervention, cfg: SiteConfig | null) => {
   const equipmentName = (interv.equipment as any)?.name || '—'
   const techName = (interv.technician as any)?.name || '—'
   const creatorName = (interv.creator as any)?.name || '—'
+  const priorityLabels: Record<string, string> = { normale: 'Normale', haute: 'Haute ⚠️', critique: 'CRITIQUE 🔴' }
+  const priorityColors: Record<string, string> = { normale: '#8b9bb4', haute: '#f59e0b', critique: '#ef4444' }
+  const verdictLabels: Record<string, string> = { conforme: '✅ Conforme', non_conforme: '❌ Non conforme', a_surveiller: '⚠️ À surveiller' }
+  const pColor = priorityColors[interv.priority] || '#8b9bb4'
+  const pLabel = priorityLabels[interv.priority] || interv.priority
+  const due = interv.due_date ? new Date(interv.due_date).toLocaleDateString('fr-FR') : null
   const html = `<html><head><meta charset="utf-8" /><title>Rapport ${interv.id}</title>
-  <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:'Outfit',sans-serif;background:#fff;color:#111}.wrap{padding:36px}.hdr{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:24px;padding-bottom:18px;border-bottom:3px solid #00d0d8}.logo{font-size:20px;font-weight:800;color:#00d0d8}.mut{font-size:10px;color:#777}.sec{margin-bottom:18px}.st{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:#888;margin-bottom:10px;padding-bottom:5px;border-bottom:1px solid #eee}.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.f{background:#f8f9fa;border-radius:8px;padding:11px}.fl{font-size:9px;color:#888;text-transform:uppercase;letter-spacing:.6px;margin-bottom:3px}.fv{font-size:13px;font-weight:700;color:#111}.badge{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;font-size:11px;font-weight:700}.b-ok{background:rgba(0,208,216,.12);color:#00d0d8}.b-w{background:rgba(255,165,2,.12);color:#ffa502}.b-r{background:rgba(255,71,87,.12);color:#ff4757}.txt{white-space:pre-wrap;line-height:1.6;font-size:13px;color:#222}.sign{border:1px solid #ddd;border-radius:10px;padding:16px;text-align:center}.sign .nm{font-size:18px;font-weight:800;color:#00d0d8;margin:8px 0}@media print{@page{margin:12mm}}</style></head><body>
+  <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:'Outfit',sans-serif;background:#fff;color:#111}.wrap{padding:36px}.hdr{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:24px;padding-bottom:18px;border-bottom:3px solid #00d0d8}.logo{font-size:20px;font-weight:800;color:#00d0d8}.mut{font-size:10px;color:#777}.sec{margin-bottom:18px}.st{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:#888;margin-bottom:10px;padding-bottom:5px;border-bottom:1px solid #eee}.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.f{background:#f8f9fa;border-radius:8px;padding:11px}.fl{font-size:9px;color:#888;text-transform:uppercase;letter-spacing:.6px;margin-bottom:3px}.fv{font-size:13px;font-weight:700;color:#111}.txt{white-space:pre-wrap;line-height:1.6;font-size:13px;color:#222}.sign{border:1px solid #ddd;border-radius:10px;padding:16px;text-align:center}.sign .nm{font-size:18px;font-weight:800;color:#00d0d8;margin:8px 0}.prio-badge{display:inline-block;padding:3px 10px;border-radius:999px;font-size:11px;font-weight:700;border:1px solid currentColor}@media print{@page{margin:12mm}}</style></head><body>
   <div class="wrap">
-    <div class="hdr"><div><div class="logo">MaintaFood</div><div class="mut">RAPPORT D'INTERVENTION — GMAO</div></div>
-    <div style="text-align:right;font-size:11px;color:#666;line-height:1.6"><div style="font-weight:800;font-size:12px;color:#111">${cfg?.name || ''}</div><div>${cfg?.certifications || ''}</div></div></div>
-    <div style="font-size:18px;font-weight:900;margin-bottom:10px">${interv.title}</div>
+    <div class="hdr">
+      <div><div class="logo">MaintaFood</div><div class="mut">RAPPORT D'INTERVENTION — GMAO</div></div>
+      <div style="text-align:right;font-size:11px;color:#666;line-height:1.6"><div style="font-weight:800;font-size:12px;color:#111">${cfg?.name || ''}</div><div>${cfg?.certifications || ''}</div></div>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+      <div style="font-size:18px;font-weight:900">${interv.title}</div>
+      <span class="prio-badge" style="color:${pColor}">${pLabel}</span>
+    </div>
+    ${due ? `<div style="font-size:12px;color:#666;margin-bottom:16px">⏱ Date limite de résolution : <strong>${due}</strong></div>` : ''}
     <div class="sec"><div class="st">Informations</div><div class="grid">
       <div class="f"><div class="fl">Équipement</div><div class="fv">${equipmentName}</div></div>
       <div class="f"><div class="fl">Créé le</div><div class="fv">${new Date(interv.created_at).toLocaleString('fr-FR')}</div></div>
       <div class="f"><div class="fl">Créé par</div><div class="fv">${creatorName}</div></div>
       <div class="f"><div class="fl">Technicien</div><div class="fv">${techName}</div></div>
+      ${interv.production_stopped ? '<div class="f" style="border-left:3px solid #ef4444"><div class="fl">Impact</div><div class="fv" style="color:#ef4444">⚠️ Production arrêtée</div></div>' : ''}
+      ${interv.food_impact ? '<div class="f" style="border-left:3px solid #00d0d8"><div class="fl">Alimentaire</div><div class="fv" style="color:#00d0d8">🛡️ Risque alimentaire</div></div>' : ''}
     </div></div>
-    ${interv.description ? `<div class="sec"><div class="st">Description</div><div class="txt">${interv.description}</div></div>` : ''}
-    <div class="sec"><div class="st">Rapport</div><div class="grid">
+    ${interv.description ? `<div class="sec"><div class="st">Description du problème</div><div class="txt">${interv.description}</div></div>` : ''}
+    <div class="sec"><div class="st">Rapport d'intervention</div><div class="grid">
       <div class="f"><div class="fl">Durée</div><div class="fv">${interv.report_duration ?? '—'} min</div></div>
-      <div class="f"><div class="fl">Verdict</div><div class="fv">${interv.report_verdict ?? '—'}</div></div>
+      <div class="f"><div class="fl">Verdict</div><div class="fv">${verdictLabels[interv.report_verdict ?? ''] ?? (interv.report_verdict ?? '—')}</div></div>
+      <div class="f"><div class="fl">Hygiène</div><div class="fv">${interv.report_hygiene ? '✅ Respectée' : '⚠️ Non vérifiée'}</div></div>
+      <div class="f"><div class="fl">Nettoyage</div><div class="fv">${interv.report_cleaning ? '✅ Effectué' : '⚠️ Non effectué'}</div></div>
     </div><div style="height:12px"></div>
     <div class="f"><div class="fl">Travaux effectués</div><div class="txt">${interv.report_actions ?? ''}</div></div>
-    <div style="height:10px"></div>
-    <div class="f"><div class="fl">Observations</div><div class="txt">${interv.report_observations ?? ''}</div></div></div>
+    ${interv.report_observations ? `<div style="height:10px"></div><div class="f"><div class="fl">Observations</div><div class="txt">${interv.report_observations}</div></div>` : ''}
+    </div>
     <div class="sec"><div class="st">Signature</div><div class="grid">
       <div class="sign"><div class="mut">Technicien responsable</div><div class="nm">${techName}</div><div class="mut">${interv.signed_at ? new Date(interv.signed_at).toLocaleString('fr-FR') : ''}</div></div>
       <div class="f"><div class="fl">Certification</div><div style="font-size:12px;color:#555;line-height:1.6">Je certifie que les informations sont exactes et que les procédures de sécurité alimentaire ont été respectées.</div></div>
     </div></div>
     <div style="margin-top:28px;padding-top:14px;border-top:1px solid #eee;display:flex;justify-content:space-between;font-size:10px;color:#aaa">
-      <span>MaintaFood GMAO · Généré le ${new Date().toLocaleString('fr-FR')}</span><span>${cfg?.certifications || ''}</span><span>Page 1/1</span>
+      <span>MaintaFood GMAO · Généré le ${new Date().toLocaleString('fr-FR')}</span><span>${cfg?.certifications || ''}</span><span>Ref: ${interv.id.slice(0,8).toUpperCase()}</span>
     </div>
   </div></body></html>`
   const win = window.open('', '_blank')
@@ -270,9 +297,9 @@ function ReportForm({ interv, equipment, user, onSave, onClose }: any) {
 
 // ─── NOUVELLE INTERVENTION ───────────────────────────────────
 function NewIntModal({ equipments, technicians, user, onClose, onSave, error, onReload }: any) {
-  const [form, setForm] = useState<{ title: string; equipment_id: string; equipment_other?: string; technician_id: string; priority: 'normale'|'haute'|'critique'; description: string; food_impact: boolean; production_stopped: boolean }>({
+  const [form, setForm] = useState<{ title: string; equipment_id: string; equipment_other?: string; technician_id: string; priority: 'normale'|'haute'|'critique'; description: string; food_impact: boolean; production_stopped: boolean; due_date: string }>({
     title: '', equipment_id: '', equipment_other: '', technician_id: user.role === 'technician' ? user.id : '',
-    priority: 'normale', description: '', food_impact: false, production_stopped: false
+    priority: 'normale', description: '', food_impact: false, production_stopped: false, due_date: ''
   })
   const [saving, setSaving] = useState(false)
   const s = (k: string, v: any) => setForm(p => ({ ...p, [k]: v }))
@@ -340,10 +367,14 @@ function NewIntModal({ equipments, technicians, user, onClose, onSave, error, on
           <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
             <label className="form-label">Priorité</label>
             <div style={{ display: 'flex', gap: 6 }}>
-              {[['normale','Normale','#8b9bb4'],['haute','Haute','#ffa502'],['critique','Critique','#ff4757']].map(([k,l,c]) => (
-                <button key={k} onClick={() => s('priority', k)} style={{ padding: '6px 12px', borderRadius: 6, border: `1px solid ${form.priority === k ? c : 'rgba(255,255,255,.08)'}`, background: form.priority === k ? c+'18' : 'transparent', color: form.priority === k ? c : 'var(--t2)', fontSize: 12, cursor: 'pointer' }}>{l}</button>
+              {[['normale','⚪ Normale','#8b9bb4','rgba(139,155,180,.12)'],['haute','🟡 Haute','#f59e0b','rgba(245,158,11,.12)'],['critique','🔴 Critique','#ef4444','rgba(239,68,68,.12)']].map(([k,l,c,bg]) => (
+                <button key={k} onClick={() => s('priority', k)} style={{ padding: '6px 12px', borderRadius: 6, border: `1px solid ${form.priority === k ? c : 'rgba(255,255,255,.08)'}`, background: form.priority === k ? bg : 'transparent', color: form.priority === k ? c : 'var(--t2)', fontSize: 12, cursor: 'pointer', fontWeight: form.priority === k ? 700 : 400 }}>{l}</button>
               ))}
             </div>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+            <label className="form-label">Date limite de résolution <span style={{ color: 'var(--t3)', fontWeight: 400 }}>(optionnel)</span></label>
+            <input className="form-input" type="date" value={form.due_date} onChange={e => s('due_date', e.target.value)} style={{ maxWidth: 220 }} />
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
             <label className="form-label">Description</label>
@@ -379,6 +410,7 @@ export default function InterventionsPage() {
     updateIntervention, addIntervention, reloadInterventions
   } = useData()
   const [filter, setFilter] = useState('all')
+  const [priorityFilter, setPriorityFilter] = useState<'all' | 'normale' | 'haute' | 'critique'>('all')
   const [showNew, setShowNew] = useState(false)
   const [selected, setSelected] = useState<Intervention | null>(null)
   const [showReport, setShowReport] = useState(false)
@@ -401,7 +433,9 @@ export default function InterventionsPage() {
   const isTech = user.role === 'technician'
   const allUsers = [...technicians, ...(technicians.length === 0 ? [] : [])]
   const list = isTech ? interventions.filter(i => i.technician_id === user.id || i.created_by === user.id) : interventions
-  const filtered = filter === 'all' ? list : list.filter(i => i.status === filter)
+  const filtered = list
+    .filter(i => filter === 'all' || i.status === filter)
+    .filter(i => priorityFilter === 'all' || i.priority === priorityFilter)
 
   const showToast = (message: string) => { setToast(message); setTimeout(() => setToast(null), 3000) }
 
@@ -457,15 +491,28 @@ export default function InterventionsPage() {
         <button onClick={() => setShowNew(true)} className="btn btn-primary"><span>+</span> Nouveau</button>
       </div>
 
-      <div style={{ display: 'flex', gap: 6, marginBottom: 16, flexWrap: 'wrap' }}>
-        {[['all','Tous',list.length], ...(Object.entries(STATUS_CONFIG) as any[]).map(([k,v]) => [k, v.label, list.filter((i: Intervention) => i.status === k).length])].map(([k,l,c]) => {
-          const sc = k !== 'all' ? STATUS_CONFIG[k as keyof typeof STATUS_CONFIG] : null
-          return (
-            <button key={k} onClick={() => setFilter(k)} className="btn btn-ghost btn-sm" style={filter === k ? { borderColor: sc?.color || '#00d0d8', color: sc?.color || '#00d0d8', background: sc?.bg || 'rgba(0,208,216,.12)' } : {}}>
-              {l} <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, opacity: .7 }}>{c}</span>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
+        {/* Filtre statut */}
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+          {[['all','Tous',list.length], ...(Object.entries(STATUS_CONFIG) as any[]).map(([k,v]) => [k, v.label, list.filter((i: Intervention) => i.status === k).length])].map(([k,l,c]) => {
+            const sc = k !== 'all' ? STATUS_CONFIG[k as keyof typeof STATUS_CONFIG] : null
+            return (
+              <button key={k} onClick={() => setFilter(k)} className="btn btn-ghost btn-sm" style={filter === k ? { borderColor: sc?.color || '#00d0d8', color: sc?.color || '#00d0d8', background: sc?.bg || 'rgba(0,208,216,.12)' } : {}}>
+                {l} <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, opacity: .7 }}>{c}</span>
+              </button>
+            )
+          })}
+        </div>
+        {/* Filtre priorité */}
+        <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+          <span style={{ fontSize: 11, color: 'var(--t3)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '.6px' }}>Priorité :</span>
+          {([['all', 'Toutes', '#8b9bb4', 'transparent'], ...Object.entries(PRIORITY_CONFIG).map(([k, v]) => [k, v.label, v.color, v.bg])] as any[]).map(([k, l, c, bg]) => (
+            <button key={k} onClick={() => setPriorityFilter(k as any)} className="btn btn-ghost btn-sm"
+              style={priorityFilter === k ? { borderColor: c, color: c, background: bg } : {}}>
+              {k === 'critique' && '🔴 '}{k === 'haute' && '🟡 '}{l}
             </button>
-          )
-        })}
+          ))}
+        </div>
       </div>
 
       {/* Mobile */}
@@ -474,13 +521,17 @@ export default function InterventionsPage() {
           const eq = equipments.find(e => e.id === i.equipment_id)
           const sc = STATUS_CONFIG[i.status]
           const pc = PRIORITY_CONFIG[i.priority]
+          const due = getDueLabel(i.due_date)
           return (
-            <div key={i.id} style={{ background: '#161719', border: '1px solid rgba(255,255,255,.06)', borderRadius: 12, overflow: 'hidden' }} onClick={() => openDetail(i)}>
-              <div style={{ height: 3, background: sc.color }} />
+            <div key={i.id} style={{ background: '#161719', border: `1px solid ${i.priority === 'critique' ? 'rgba(239,68,68,.3)' : 'rgba(255,255,255,.06)'}`, borderRadius: 12, overflow: 'hidden' }} onClick={() => openDetail(i)}>
+              <div style={{ height: 3, background: pc.color }} />
               <div style={{ padding: '12px 14px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
                   <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 20, background: sc.bg, color: sc.color }}>{sc.label}</span>
-                  <span style={{ fontSize: 10, color: pc.color, fontFamily: 'var(--font-mono)' }}>{pc.label.toUpperCase()}</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    {due && <span style={{ fontSize: 10, color: due.color, fontFamily: 'var(--font-mono)', fontWeight: 700 }}>{due.label}</span>}
+                    <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 20, background: pc.bg, color: pc.color, fontWeight: 700 }}>{pc.label}</span>
+                  </div>
                 </div>
                 <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 4 }}>{i.title}</div>
                 <div style={{ fontSize: 12, color: 'var(--t2)' }}>{eq?.name} · {fmt(i.created_at)}</div>
@@ -494,23 +545,31 @@ export default function InterventionsPage() {
       {/* Desktop */}
       <div className="card hide-mobile">
         <table className="tbl">
-          <thead><tr><th>Titre</th><th>Équipement</th><th>Priorité</th><th>Statut</th><th>Rapport</th><th>Date</th></tr></thead>
+          <thead><tr><th>Titre</th><th>Équipement</th><th>Priorité</th><th>Échéance</th><th>Statut</th><th>Rapport</th><th>Date</th></tr></thead>
           <tbody>
-            {loading && <tr><td colSpan={6} style={{ textAlign: 'center', padding: 40, color: 'var(--t2)' }}>Chargement…</td></tr>}
-            {!loading && filtered.length === 0 && <tr><td colSpan={6}><div className="empty-state"><span>✅</span><span>Aucune intervention</span></div></td></tr>}
+            {loading && <tr><td colSpan={7} style={{ textAlign: 'center', padding: 40, color: 'var(--t2)' }}>Chargement…</td></tr>}
+            {!loading && filtered.length === 0 && <tr><td colSpan={7}><div className="empty-state"><span>✅</span><span>Aucune intervention</span></div></td></tr>}
             {filtered.map((i: Intervention) => {
               const eq = equipments.find(e => e.id === i.equipment_id)
               const sc = STATUS_CONFIG[i.status]
               const pc = PRIORITY_CONFIG[i.priority]
+              const due = getDueLabel(i.due_date)
               return (
-                <tr key={i.id} onClick={() => openDetail(i)}>
+                <tr key={i.id} onClick={() => openDetail(i)} style={{ borderLeft: i.priority === 'critique' ? '2px solid #ef4444' : i.priority === 'haute' ? '2px solid #f59e0b' : 'none' }}>
                   <td>
                     <div style={{ fontWeight: 600, maxWidth: 260, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{i.title}</div>
                     {i.production_stopped && <div style={{ fontSize: 10, color: '#ff4757' }}>⚠️ Prod. arrêtée</div>}
                     {i.food_impact && <div style={{ fontSize: 10, color: '#00d0d8' }}>🛡️ Impact alim.</div>}
                   </td>
                   <td style={{ fontSize: 12, color: 'var(--t2)' }}>{eq?.name || '—'}</td>
-                  <td><span style={{ fontSize: 12, color: pc.color, fontWeight: 600 }}>{pc.label}</span></td>
+                  <td><span style={{ fontSize: 12, padding: '2px 8px', borderRadius: 20, background: pc.bg, color: pc.color, fontWeight: 700 }}>{pc.label}</span></td>
+                  <td>
+                    {due
+                      ? <span style={{ fontSize: 12, color: due.color, fontFamily: 'var(--font-mono)', fontWeight: 700 }}>{due.label}</span>
+                      : <span style={{ fontSize: 12, color: 'var(--t3)' }}>—</span>
+                    }
+                    {i.due_date && <div style={{ fontSize: 10, color: 'var(--t3)' }}>{fmt(i.due_date)}</div>}
+                  </td>
                   <td><span className="badge" style={{ background: sc.bg, color: sc.color }}>{sc.label}</span></td>
                   <td>{i.report_verdict ? <span style={{ color: '#00d0d8', fontSize: 12 }}>✅ Signé</span> : <span style={{ color: 'var(--t3)', fontSize: 12 }}>En attente</span>}</td>
                   <td style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--t2)' }}>{fmt(i.created_at)}</td>
@@ -527,6 +586,10 @@ export default function InterventionsPage() {
           <div className="modal-box" style={{ maxWidth: 640 }}>
             <div style={{ padding: '18px 20px 14px', borderBottom: '1px solid rgba(255,255,255,.04)', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, flexShrink: 0 }}>
               <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                  {(() => { const pc = PRIORITY_CONFIG[selected.priority]; return <span style={{ fontSize: 11, padding: '3px 10px', borderRadius: 20, background: pc.bg, color: pc.color, fontWeight: 700 }}>{selected.priority === 'critique' ? '🔴 ' : selected.priority === 'haute' ? '🟡 ' : ''}{pc.label}</span> })()}
+                  {selected.due_date && (() => { const due = getDueLabel(selected.due_date); return due ? <span style={{ fontSize: 11, color: due.color, fontFamily: 'var(--font-mono)', fontWeight: 700 }}>⏱ {due.label} · {fmt(selected.due_date)}</span> : null })()}
+                </div>
                 <div style={{ fontSize: 17, fontWeight: 700 }}>{selected.title}</div>
                 <div style={{ fontSize: 11, color: 'var(--t2)', marginTop: 2, fontFamily: 'var(--font-mono)' }}>#{selected.id.slice(0,8).toUpperCase()} · {fmtDT(selected.created_at)}</div>
               </div>
@@ -534,31 +597,127 @@ export default function InterventionsPage() {
             </div>
             <div className="modal-body" style={{ padding: '18px 20px', display: 'flex', flexDirection: 'column', gap: 14 }}>
               {detailLoading && <div style={{ fontSize: 11, color: 'var(--t3)', textAlign: 'center' }}>Chargement…</div>}
+
+              {/* Priorité — chef/admin uniquement */}
+              {['admin','chef'].includes(user.role) ? (
+                <div>
+                  <div className="form-label" style={{ marginBottom: 8, display: 'block' }}>Priorité</div>
+                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                    {(Object.entries(PRIORITY_CONFIG) as any[]).map(([k, v]) => (
+                      <button key={k} onClick={async () => {
+                        updateIntervention(selected.id, { priority: k as Priority })
+                        setSelected(prev => prev ? { ...prev, priority: k as Priority } : prev)
+                        try { await interventionsApi.update(selected.id, { priority: k as Priority }) } catch {}
+                      }} style={{ padding: '6px 12px', borderRadius: 20, border: `1px solid ${selected.priority === k ? v.color : 'rgba(255,255,255,.08)'}`, background: selected.priority === k ? v.bg : 'transparent', color: selected.priority === k ? v.color : 'var(--t2)', fontSize: 12, cursor: 'pointer', fontWeight: selected.priority === k ? 700 : 400 }}>
+                        {k === 'critique' ? '🔴 ' : k === 'haute' ? '🟡 ' : '⚪ '}{v.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <div className="form-label">Priorité</div>
+                  {(() => { const pc = PRIORITY_CONFIG[selected.priority]; return <span style={{ fontSize: 12, padding: '3px 10px', borderRadius: 20, background: pc.bg, color: pc.color, fontWeight: 700 }}>{selected.priority === 'critique' ? '🔴 ' : selected.priority === 'haute' ? '🟡 ' : '⚪ '}{pc.label}</span> })()}
+                  <span style={{ fontSize: 11, color: 'var(--t3)' }}>(modifiable par le chef)</span>
+                </div>
+              )}
+
+              {/* Date limite — chef/admin uniquement */}
+              {['admin','chef'].includes(user.role) ? (
+                <div>
+                  <div className="form-label" style={{ marginBottom: 8, display: 'block' }}>Date limite de résolution</div>
+                  <input className="form-input" type="date" defaultValue={selected.due_date || ''} style={{ maxWidth: 220 }}
+                    onChange={async (e) => {
+                      const due_date = e.target.value || null
+                      updateIntervention(selected.id, { due_date } as any)
+                      setSelected(prev => prev ? { ...prev, due_date } : prev)
+                      try { await interventionsApi.update(selected.id, { due_date } as any) } catch {}
+                    }}
+                  />
+                  {selected.due_date && (() => { const due = getDueLabel(selected.due_date); return due ? <div style={{ marginTop: 6, fontSize: 12, color: due.color, fontWeight: 700 }}>⏱ {due.label}</div> : null })()}
+                </div>
+              ) : selected.due_date ? (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <div className="form-label">Échéance</div>
+                  {(() => { const due = getDueLabel(selected.due_date); return <span style={{ fontSize: 12, color: due?.color || 'var(--t2)', fontFamily: 'var(--font-mono)', fontWeight: 700 }}>{due?.label} · {fmt(selected.due_date)}</span> })()}
+                </div>
+              ) : null}
+
+              {/* Statut — actions contextuelles selon rôle */}
               <div>
                 <div className="form-label" style={{ marginBottom: 8, display: 'block' }}>Statut</div>
-                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                  {(Object.entries(STATUS_CONFIG) as any[]).map(([k, v]) => (
-                    <button key={k} onClick={() => updateStatus(selected, k)} style={{ padding: '6px 12px', borderRadius: 20, border: `1px solid ${selected.status === k ? v.color : 'rgba(255,255,255,.08)'}`, background: selected.status === k ? v.bg : 'transparent', color: selected.status === k ? v.color : 'var(--t2)', fontSize: 12, cursor: 'pointer' }}>
-                      {v.label}
-                    </button>
-                  ))}
-                </div>
+                {['admin','chef'].includes(user.role) ? (
+                  /* Chef/admin : tous les boutons */
+                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                    {(Object.entries(STATUS_CONFIG) as any[]).map(([k, v]) => (
+                      <button key={k} onClick={() => updateStatus(selected, k)} style={{ padding: '6px 12px', borderRadius: 20, border: `1px solid ${selected.status === k ? v.color : 'rgba(255,255,255,.08)'}`, background: selected.status === k ? v.bg : 'transparent', color: selected.status === k ? v.color : 'var(--t2)', fontSize: 12, cursor: 'pointer' }}>
+                        {v.label}
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  /* Technicien : workflow guidé */
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                      {/* Badge statut actuel */}
+                      {(() => { const sc = STATUS_CONFIG[selected.status]; return <span style={{ padding: '6px 12px', borderRadius: 20, border: `1px solid ${sc.color}`, background: sc.bg, color: sc.color, fontSize: 12, fontWeight: 700 }}>{sc.label}</span> })()}
+                    </div>
+                    {/* Actions disponibles selon statut */}
+                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                      {selected.status === 'a_faire' && (
+                        <button onClick={() => updateStatus(selected, 'en_cours')} style={{ padding: '7px 14px', borderRadius: 8, border: '1px solid #3c82e8', background: 'rgba(60,130,232,.12)', color: '#3c82e8', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
+                          ▶ Démarrer l'intervention
+                        </button>
+                      )}
+                      {selected.status === 'en_cours' && (
+                        <button onClick={() => setShowReport(true)} style={{ padding: '7px 14px', borderRadius: 8, border: 'none', background: '#00d0d8', color: '#000', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
+                          📝 Terminer et remplir le rapport
+                        </button>
+                      )}
+                      {selected.status === 'en_cours' && (
+                        <button onClick={() => updateStatus(selected, 'a_faire')} style={{ padding: '7px 14px', borderRadius: 8, border: '1px solid rgba(255,255,255,.12)', background: 'transparent', color: 'var(--t2)', fontSize: 12, cursor: 'pointer' }}>
+                          ⏸ Mettre en pause
+                        </button>
+                      )}
+                    </div>
+                    {selected.status === 'en_cours' && (
+                      <div style={{ padding: '8px 12px', background: 'rgba(60,130,232,.06)', border: '1px solid rgba(60,130,232,.2)', borderRadius: 8, fontSize: 12, color: '#3c82e8' }}>
+                        ℹ️ Intervention en cours — terminez-la quand vous êtes prêt. Vous pouvez fermer et reprendre plus tard.
+                      </div>
+                    )}
+                    {selected.status === 'termine' && (
+                      <div style={{ padding: '8px 12px', background: 'rgba(60,184,122,.06)', border: '1px solid rgba(60,184,122,.2)', borderRadius: 8, fontSize: 12, color: '#3cb87a' }}>
+                        ✅ Terminée — en attente de validation par le chef.
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
               {selected.description && <div style={{ padding: '12px 14px', background: 'rgba(255,255,255,.03)', borderRadius: 8, fontSize: 13, color: 'var(--t2)', lineHeight: 1.6 }}>{selected.description}</div>}
+
+              {/* Rapport signé */}
               {selected.report_verdict && (
                 <div style={{ padding: 14, background: 'rgba(0,208,216,.06)', border: '1px solid rgba(0,208,216,.2)', borderRadius: 10 }}>
                   <div style={{ fontWeight: 600, color: '#00d0d8', marginBottom: 8 }}>✅ Rapport complété</div>
                   <div style={{ fontSize: 13, color: 'var(--t2)', lineHeight: 1.6, marginBottom: 8 }}>{selected.report_actions}</div>
                   <div style={{ fontSize: 12, color: 'var(--t2)' }}>Verdict : <strong>{selected.report_verdict}</strong> · Durée : {selected.report_duration} min</div>
+                  {selected.report_observations && <div style={{ fontSize: 12, color: 'var(--t2)', marginTop: 6 }}>Observations : {selected.report_observations}</div>}
                   <div style={{ fontSize: 11, color: 'var(--t3)', marginTop: 6, fontFamily: 'var(--font-mono)' }}>Signé le {fmtDT(selected.signed_at || '')}</div>
-                  <button className="btn btn-ghost btn-sm" onClick={() => openPdf(selected, siteConfig)} style={{ marginTop: 10, borderColor: 'rgba(0,208,216,.25)', color: '#00d0d8' }}>Imprimer / PDF</button>
                 </div>
               )}
             </div>
             <div style={{ padding: '12px 20px', borderTop: '1px solid rgba(255,255,255,.04)', display: 'flex', gap: 8, justifyContent: 'flex-end', flexShrink: 0 }}>
-              {(selected.technician_id === user.id || ['admin','chef'].includes(user.role)) && selected.status !== 'valide' && !selected.report_verdict && (
+              {/* Rapport : technicien assigné peut remplir si en_cours, chef/admin peuvent toujours */}
+              {(selected.technician_id === user.id || ['admin','chef'].includes(user.role)) &&
+               selected.status !== 'valide' && !selected.report_verdict &&
+               (selected.status === 'en_cours' || ['admin','chef'].includes(user.role)) && (
                 <button onClick={() => setShowReport(true)} style={{ background: '#00d0d8', color: '#000', border: 'none', borderRadius: 6, padding: '8px 16px', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>📝 Remplir le rapport</button>
               )}
+              {/* PDF : disponible dès que rapport signé */}
+              {selected.report_verdict && (
+                <button className="btn btn-ghost btn-sm" onClick={() => openPdf(selected, siteConfig)} style={{ borderColor: 'rgba(0,208,216,.25)', color: '#00d0d8' }}>🖨️ PDF</button>
+              )}
+              {/* Validation finale : chef/admin */}
               {['admin','chef'].includes(user.role) && (selected.status === 'termine' || selected.report_verdict) && selected.status !== 'valide' && (
                 <button onClick={() => updateStatus(selected, 'valide')} style={{ background: '#a855f7', color: '#fff', border: 'none', borderRadius: 6, padding: '8px 16px', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>⭐ Valider</button>
               )}

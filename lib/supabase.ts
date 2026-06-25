@@ -205,6 +205,10 @@ export const interventionsApi = {
     const { error } = await supabase.from('interventions').update({ status }).eq('id', id)
     ensureNoError(error, 'Changement statut intervention')
   },
+  update: async (id: string, updates: Partial<Intervention>): Promise<void> => {
+    const { error } = await supabase.from('interventions').update(updates).eq('id', id)
+    ensureNoError(error, 'Mise à jour intervention')
+  },
   submitReport: async (id: string, report: {
     actions: string; observations: string; duration: number
     verdict: string; hygiene: boolean; cleaning: boolean; signed_by: string
