@@ -76,7 +76,7 @@ function calcStockStatus(planParts: PlanPart[], intervalDays: number, nextDueAt:
 // ─── BADGE STOCK ALERT ────────────────────────────────────────
 function StockAlertBadge({ alerts }: { alerts: ReturnType<typeof calcStockStatus> }) {
   if (!alerts || alerts.length === 0) return null
-  const hasBlocking = alerts.some(a => a.qty < a.qty_per_intervention)
+ const hasBlocking = alerts.some(a => a.color === '#ef4444')
   const color = alerts.some(a => a.color === '#ef4444') ? '#ef4444' : '#f59e0b'
   return (
     <span style={{ fontSize: 10, padding: '2px 7px', borderRadius: 20, background: color + '18', color, fontWeight: 700, border: `1px solid ${color}33`, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
