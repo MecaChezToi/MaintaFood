@@ -695,6 +695,43 @@ export default function InterventionsPage() {
               </div>
               {selected.description && <div style={{ padding: '12px 14px', background: 'rgba(255,255,255,.03)', borderRadius: 8, fontSize: 13, color: 'var(--t2)', lineHeight: 1.6 }}>{selected.description}</div>}
 
+              {/* Réassignation — chef/admin uniquement */}
+              {['admin','chef'].includes(user.role) && selected.status !== 'valide' && (
+                <div style={{ padding: '12px 14px', background: 'rgba(255,255,255,.02)', border: '1px solid rgba(255,255,255,.06)', borderRadius: 10 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+                    <span style={{ fontSize: 14 }}>👷</span>
+                    <div className="form-label" style={{ margin: 0 }}>Technicien assigné</div>
+                    {selected.technician_id && (() => {
+                      const tech = technicians.find((t: any) => t.id === selected.technician_id)
+                      return tech ? <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 20, background: 'rgba(60,130,232,.12)', color: '#3c82e8', fontWeight: 600 }}>{tech.name}</span> : null
+                    })()}
+                  </div>
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                    <select className="form-input" defaultValue={selected.technician_id || ''}
+                      style={{ flex: 1 }}
+                      onChange={async (e) => {
+                        const technician_id = e.target.value || null
+                        updateIntervention(selected.id, { technician_id } as any)
+                        setSelected(prev => prev ? { ...prev, technician_id } : prev)
+                        try {
+                          await interventionsApi.update(selected.id, { technician_id } as any)
+                          try { auditApi.log(user.id, 'Réassignation OT', selected.title, `→ ${technicians.find((t: any) => t.id === technician_id)?.name || 'Non assigné'}`) } catch {}
+                        } catch {}
+                      }}>
+                      <option value="">— Non assigné</option>
+                      {technicians.map((t: any) => (
+                        <option key={t.id} value={t.id}>{t.name} ({t.role})</option>
+                      ))}
+                    </select>
+                  </div>
+                  {selected.status === 'en_cours' && (
+                    <div style={{ marginTop: 8, fontSize: 11, color: '#f59e0b' }}>
+                      ⚠️ L'intervention est en cours — le nouveau technicien devra reprendre le suivi.
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* Rapport signé */}
               {selected.report_verdict && (
                 <div style={{ padding: 14, background: 'rgba(0,208,216,.06)', border: '1px solid rgba(0,208,216,.2)', borderRadius: 10 }}>

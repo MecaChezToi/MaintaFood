@@ -359,6 +359,73 @@ export default function DashboardPage() {
         </div>
       )}
 
+      {/* OT urgents */}
+      {(() => {
+        const urgentOT = myOT
+          .filter(i => !['termine','valide'].includes(i.status) && (i.priority === 'critique' || i.priority === 'haute' || i.due_date))
+          .sort((a, b) => {
+            // Critique d'abord, puis haute, puis par due_date
+            const pOrder = { critique: 0, haute: 1, normale: 2 }
+            const pDiff = (pOrder[a.priority] ?? 2) - (pOrder[b.priority] ?? 2)
+            if (pDiff !== 0) return pDiff
+            if (a.due_date && b.due_date) return new Date(a.due_date).getTime() - new Date(b.due_date).getTime()
+            if (a.due_date) return -1
+            if (b.due_date) return 1
+            return 0
+          })
+          .slice(0, 5)
+
+        if (urgentOT.length === 0) return null
+
+        return (
+          <div style={{ marginBottom: 12, background: 'rgba(239,68,68,.04)', border: '1px solid rgba(239,68,68,.2)', borderRadius: 12, overflow: 'hidden' }}>
+            <div style={{ padding: '12px 16px', borderBottom: '1px solid rgba(239,68,68,.12)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ fontSize: 14 }}>🚨</span>
+                <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--t1)' }}>OT urgents</span>
+                <span style={{ fontSize: 11, padding: '1px 7px', borderRadius: 20, background: 'rgba(239,68,68,.15)', color: '#ef4444', fontWeight: 700, fontFamily: 'var(--font-mono)' }}>{urgentOT.length}</span>
+              </div>
+              <a href="/interventions" style={{ fontSize: 11, color: '#00d0d8', textDecoration: 'none', fontFamily: 'var(--font-mono)' }}>Voir tout →</a>
+            </div>
+            <div style={{ padding: '4px 0' }}>
+              {urgentOT.map(i => {
+                const pc = PRIORITY_CONFIG[i.priority]
+                const sc = STATUS_CONFIG[i.status]
+                const eq = equipments.find(e => e.id === i.equipment_id)
+                const due = i.due_date ? (() => {
+                  const diff = Math.ceil((new Date(i.due_date).getTime() - Date.now()) / 86400000)
+                  if (diff < 0)  return { label: `Dépassé ${Math.abs(diff)}j`, color: '#ef4444' }
+                  if (diff === 0) return { label: "Aujourd'hui !", color: '#ef4444' }
+                  if (diff <= 3)  return { label: `J-${diff}`, color: '#ef4444' }
+                  if (diff <= 7)  return { label: `J-${diff}`, color: '#f59e0b' }
+                  return { label: `J-${diff}`, color: '#8b9bb4' }
+                })() : null
+
+                return (
+                  <a key={i.id} href="/interventions" style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 16px', borderBottom: '1px solid rgba(255,255,255,.03)', textDecoration: 'none', transition: 'background .15s' }}
+                    onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,.03)' )}
+                    onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
+                    {/* Barre priorité */}
+                    <div style={{ width: 3, height: 36, borderRadius: 2, background: pc.color, flexShrink: 0 }} />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--t1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{i.title}</div>
+                      <div style={{ fontSize: 11, color: 'var(--t2)', marginTop: 1 }}>{eq?.name || '—'}</div>
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4, flexShrink: 0 }}>
+                      <span style={{ fontSize: 10, padding: '2px 7px', borderRadius: 20, background: pc.bg, color: pc.color, fontWeight: 700 }}>{pc.label}</span>
+                      {due
+                        ? <span style={{ fontSize: 11, color: due.color, fontFamily: 'var(--font-mono)', fontWeight: 700 }}>{due.label}</span>
+                        : <span style={{ fontSize: 10, padding: '2px 7px', borderRadius: 20, background: sc.bg, color: sc.color }}>{sc.label}</span>
+                      }
+                    </div>
+                  </a>
+                )
+              })}
+            </div>
+          </div>
+        )
+      })()}
+
       {/* Alertes */}
       {foodAlerts.length > 0 && (
         <div style={{ padding: '10px 14px', background: 'rgba(255,71,87,.08)', border: '1px solid rgba(255,71,87,.2)', borderRadius: 8, fontSize: 13, color: '#ff4757', display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
