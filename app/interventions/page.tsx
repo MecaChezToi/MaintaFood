@@ -712,7 +712,7 @@ export default function InterventionsPage() {
                       onChange={async (e) => {
                         const technician_id = e.target.value || null
                         updateIntervention(selected.id, { technician_id } as any)
-                        setSelected(prev => prev ? { ...prev, technician_id } : prev)
+                        setSelected(prev => prev ? { ...prev, technician_id: technician_id as string } : prev)
                         try {
                           await interventionsApi.update(selected.id, { technician_id } as any)
                           try { auditApi.log(user.id, 'Réassignation OT', selected.title, `→ ${technicians.find((t: any) => t.id === technician_id)?.name || 'Non assigné'}`) } catch {}
