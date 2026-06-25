@@ -3,9 +3,10 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useAuth } from '@/components/layout/AuthProvider'
 import { useData } from '@/lib/DataStore'
+import { preventiveApi } from '@/lib/supabase'
 import AppLayout from '@/components/layout/AppLayout'
 import type { Equipment, Intervention, Part, SiteConfig } from '@/types'
-import { STATUS_CONFIG, PRIORITY_CONFIG } from '@/types'
+import { STATUS_CONFIG, PRIORITY_CONFIG, URGENCY_CONFIG } from '@/types'
 
 const fmt = (d: string) => d ? new Date(d).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '—'
 
@@ -180,6 +181,7 @@ export default function DashboardPage() {
   // ── Scanner QR — tous les hooks avant tout return conditionnel ──
   const [showScanner, setShowScanner] = useState(false)
   const [scanError, setScanError] = useState<string | null>(null)
+  const [preventiveAlerts, setPreventiveAlerts] = useState<any[]>([])
   const videoRef = useRef<HTMLVideoElement>(null)
   const streamRef = useRef<MediaStream | null>(null)
   const rafRef = useRef<number | null>(null)
@@ -246,6 +248,20 @@ export default function DashboardPage() {
     if (!showScanner) stopCamera()
     return () => stopCamera()
   }, [showScanner, stopCamera])
+
+  // Charger les préventifs urgents (overdue + urgent < 7j)
+  useEffect(() => {
+    preventiveApi.getUpcoming(30).then(data => {
+      const alerts = data
+        .filter(p => p.urgency === 'overdue' || p.urgency === 'urgent')
+        .sort((a, b) => {
+          const o = { overdue: 0, urgent: 1, soon: 2, ok: 3 }
+          return o[a.urgency] - o[b.urgency]
+        })
+        .slice(0, 5)
+      setPreventiveAlerts(alerts)
+    }).catch(() => {})
+  }, [])
 
   if (!user) return null
 
@@ -425,6 +441,45 @@ export default function DashboardPage() {
           </div>
         )
       })()}
+
+      {/* Alertes préventif */}
+      {preventiveAlerts.length > 0 && (
+        <div style={{ marginBottom: 12, background: 'rgba(245,158,11,.04)', border: '1px solid rgba(245,158,11,.2)', borderRadius: 12, overflow: 'hidden' }}>
+          <div style={{ padding: '12px 16px', borderBottom: '1px solid rgba(245,158,11,.12)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ fontSize: 14 }}>🔧</span>
+              <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--t1)' }}>Préventif à faire</span>
+              <span style={{ fontSize: 11, padding: '1px 7px', borderRadius: 20, background: 'rgba(245,158,11,.15)', color: '#f59e0b', fontWeight: 700, fontFamily: 'var(--font-mono)' }}>{preventiveAlerts.length}</span>
+            </div>
+            <a href="/preventive" style={{ fontSize: 11, color: '#00d0d8', textDecoration: 'none', fontFamily: 'var(--font-mono)' }}>Voir tout →</a>
+          </div>
+          <div style={{ padding: '4px 0' }}>
+            {preventiveAlerts.map(p => {
+              const uc = URGENCY_CONFIG[p.urgency as keyof typeof URGENCY_CONFIG]
+              const days = p.next_due_at
+                ? Math.ceil((new Date(p.next_due_at).getTime() - Date.now()) / 86400000)
+                : null
+              return (
+                <a key={p.id} href="/preventive" style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 16px', borderBottom: '1px solid rgba(255,255,255,.03)', textDecoration: 'none' }}
+                  onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,.03)')}
+                  onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
+                  <div style={{ width: 3, height: 36, borderRadius: 2, background: uc.color, flexShrink: 0 }} />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--t1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.task_name}</div>
+                    <div style={{ fontSize: 11, color: 'var(--t2)', marginTop: 1 }}>{p.equipment_name} · Zone {p.equipment_zone}</div>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4, flexShrink: 0 }}>
+                    <span style={{ fontSize: 10, padding: '2px 7px', borderRadius: 20, background: uc.bg, color: uc.color, fontWeight: 700 }}>{uc.label}</span>
+                    <span style={{ fontSize: 11, color: uc.color, fontFamily: 'var(--font-mono)', fontWeight: 700 }}>
+                      {days === null ? '—' : days < 0 ? `Retard ${Math.abs(days)}j` : days === 0 ? "Aujourd'hui" : `J-${days}`}
+                    </span>
+                  </div>
+                </a>
+              )
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Alertes */}
       {foodAlerts.length > 0 && (
