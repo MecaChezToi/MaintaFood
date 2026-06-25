@@ -210,11 +210,49 @@ function DetailPanel({ part, stock, canEdit, onAdjust, onDeselect, isMobile }: {
           <a href={`tel:${part.supplier_contact}`} style={{
             display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--t1)',
             textDecoration: 'none', padding: '8px 12px', background: 'var(--s3)',
-            borderRadius: 8, border: '1px solid var(--b0)', fontWeight: 500,
+            borderRadius: 8, border: '1px solid var(--b0)', fontWeight: 500, marginBottom: 10,
           }}>
             📞 {part.supplier_contact}
           </a>
         )}
+
+        {/* Délai de réappro */}
+        {canEdit && (
+          <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', background: 'var(--s3)', borderRadius: 8, border: '1px solid var(--b0)' }}>
+            <span style={{ fontSize: 16 }}>🚚</span>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 10, fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '.6px', color: 'var(--t3)', marginBottom: 4 }}>Délai de réappro</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <input
+                  type="number"
+                  min={0}
+                  defaultValue={(part as any).lead_time_days ?? ''}
+                  placeholder="—"
+                  style={{ width: 70, background: 'var(--bg)', border: '1px solid var(--b1)', borderRadius: 6, padding: '4px 8px', color: 'var(--t1)', fontSize: 13, fontFamily: 'var(--font-mono)', fontWeight: 700 }}
+                  onChange={async (e) => {
+                    const val = parseInt(e.target.value)
+                    const lead_time_days = isNaN(val) ? null : val
+                    try {
+                      await partsApi.update(part.id, { lead_time_days } as any)
+                    } catch {}
+                  }}
+                />
+                <span style={{ fontSize: 12, color: 'var(--t2)' }}>jours</span>
+                {(part as any).lead_time_days > 0 && (
+                  <span style={{ fontSize: 11, color: '#f59e0b', fontWeight: 600 }}>
+                    ≈ {Math.round((part as any).lead_time_days / 7)}sem
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+        {!canEdit && (part as any).lead_time_days > 0 && (
+          <div style={{ fontSize: 12, color: 'var(--t2)', marginTop: 6 }}>
+            🚚 Délai réappro : <strong style={{ color: 'var(--t1)' }}>{(part as any).lead_time_days} jours</strong>
+          </div>
+        )}
+
         {canEdit && typeof part.price === 'number' && part.price > 0 && (
           <div style={{ marginTop: 10, fontSize: 12, color: 'var(--t2)' }}>
             Prix HTVA : <strong style={{ color: 'var(--t1)' }}>{Number(part.price).toFixed(2)} €</strong>
@@ -360,7 +398,7 @@ function AdjustModal({ part, canEdit, onClose, onConfirm }: {
 
 // ─── ADD PART MODAL ───────────────────────────────────────────
 function AddPartModal({ onClose, onSave }: { onClose: () => void; onSave: (part: Partial<Part>) => void }) {
-  const [f, setF] = useState({ ref: '', name: '', category: 'Filtration', unit: 'pcs', qty: 0, min_qty: 1, price: 0, supplier: '', supplier_ref: '', supplier_contact: '', location: 'A1', location_detail: '' })
+  const [f, setF] = useState({ ref: '', name: '', category: 'Filtration', unit: 'pcs', qty: 0, min_qty: 1, price: 0, supplier: '', supplier_ref: '', supplier_contact: '', location: 'A1', location_detail: '', lead_time_days: 0 })
   const s = (k: string, v: any) => setF(p => ({ ...p, [k]: v }))
 
   return (
@@ -436,6 +474,13 @@ function AddPartModal({ onClose, onSave }: { onClose: () => void; onSave: (part:
             <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
               <label className="form-label">Téléphone</label>
               <input className="form-input" placeholder="ex: 01 23 45 67 89" value={f.supplier_contact} onChange={e => s('supplier_contact', e.target.value)} />
+            </div>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+            <label className="form-label">🚚 Délai de réappro (jours) <span style={{ color: 'var(--t3)', fontWeight: 400 }}>— utilisé pour l'anticipation stock préventif</span></label>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <input className="form-input" type="number" min={0} value={f.lead_time_days} onChange={e => s('lead_time_days', parseInt(e.target.value) || 0)} style={{ maxWidth: 100 }} />
+              <span style={{ fontSize: 12, color: 'var(--t2)' }}>jours {f.lead_time_days > 0 ? `≈ ${Math.round(f.lead_time_days / 7)} semaine${Math.round(f.lead_time_days / 7) > 1 ? 's' : ''}` : ''}</span>
             </div>
           </div>
         </div>

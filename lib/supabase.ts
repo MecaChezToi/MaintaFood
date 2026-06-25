@@ -134,14 +134,14 @@ export const equipmentsApi = {
 
 // ─── PIÈCES ──────────────────────────────────────────────────
 export const partsApi = {
-  getAll: async (): Promise<Part[]> => {
+getAll: async (): Promise<Part[]> => {
     const { data, error } = await supabase
       .from('parts')
-      .select('id,name,ref,category,unit,qty,min_qty,price,supplier,supplier_ref,supplier_contact,location,location_detail,organization_id,created_at,updated_at')
+      .select('id,name,ref,category,unit,qty,min_qty,price,supplier,supplier_ref,supplier_contact,location,location_detail,lead_time_days,organization_id,created_at,updated_at')
       .order('name')
     ensureNoError(error, 'Chargement pieces')
     return data ?? []
-  },
+  }, 
   create: async (part: Partial<Part>): Promise<Part | null> => {
     const { data, error } = await supabase.from('parts').insert(part).select().single()
     ensureNoError(error, 'Creation piece')
@@ -156,6 +156,7 @@ export const partsApi = {
     const { error } = await supabase.from('parts').update({ qty: newQty }).eq('id', id)
     ensureNoError(error, 'Ajustement stock')
   },
+  
 }
 
 // ─── INTERVENTIONS ───────────────────────────────────────────
