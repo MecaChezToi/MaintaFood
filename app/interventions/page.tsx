@@ -332,12 +332,12 @@ function NewIntModal({ equipments, technicians, user, onClose, onSave, error, on
 
   return (
     <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
-      <div className="modal-box" style={{ maxWidth: 600 }}>
+      <div className="modal-box" style={{ maxWidth: 600, display: 'flex', flexDirection: 'column', maxHeight: '90dvh' }}>
         <div style={{ padding: '18px 20px 14px', borderBottom: '1px solid rgba(255,255,255,.04)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
           <div style={{ fontSize: 17, fontWeight: 700 }}>Nouvelle intervention</div>
           <button onClick={onClose} style={{ ...iS, padding: '4px 8px', fontSize: 16 }}>×</button>
         </div>
-        <div className="modal-body" style={{ padding: '18px 20px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+        <div className="modal-body" style={{ padding: '18px 20px', display: 'flex', flexDirection: 'column', gap: 14, overflowY: 'auto', flex: 1, minHeight: 0 }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
             <label className="form-label">Titre *</label>
             <input className="form-input" placeholder="ex: Remplacement joint doseuse" value={form.title} onChange={e => s('title', e.target.value)} />
@@ -583,7 +583,7 @@ export default function InterventionsPage() {
       {/* Modal détail */}
       {selected && !showReport && (
         <div className="modal-overlay" onClick={e => e.target === e.currentTarget && setSelected(null)}>
-          <div className="modal-box" style={{ maxWidth: 640 }}>
+          <div className="modal-box" style={{ maxWidth: 600, display: 'flex', flexDirection: 'column', maxHeight: '90dvh' }}>
             <div style={{ padding: '18px 20px 14px', borderBottom: '1px solid rgba(255,255,255,.04)', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, flexShrink: 0 }}>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
