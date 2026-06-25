@@ -94,7 +94,7 @@ export interface Intervention {
   title: string
   description: string
   equipment_id: string
-  technician_id: string
+technician_id: string | null
   created_by: string
   status: IntStatus
   priority: Priority
