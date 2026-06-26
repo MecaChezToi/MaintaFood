@@ -1064,7 +1064,7 @@ export default function PlanPage() {
   const [error, setError] = useState<string | null>(null)
   const [toast, setToast] = useState<string | null>(null)
 
-  const canManage = user?.role === 'admin' || user?.role === 'manager'
+  const canManage = user?.role === 'admin' || user?.role === 'manager' || user?.role === 'chef'
 
   const load = async () => {
     // Recharger uniquement les équipements — pas tout le DataStore
