@@ -43,11 +43,9 @@ function calcStockStatus(planParts: PlanPart[], intervalDays: number, nextDueAt:
     const leadTime = part.lead_time_days ?? 0
 
     // Combien d'interventions le stock actuel couvre-t-il ?
-   const interventionsCovered = Math.floor(stock / pp.qty_per_intervention)
+    const interventionsCovered = Math.floor(stock / qtyPerInt)
 
     // Dans combien de jours faut-il commander pour ne pas tomber à zéro ?
-    // On doit avoir le stock AVANT la prochaine intervention post-réappro
-    // => jours avant rupture = interventionsCovered * intervalDays
     const daysBeforeStockout = interventionsCovered * intervalDays
 
     // Il faut commander si le délai de réappro dépasse le temps avant rupture
