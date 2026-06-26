@@ -17,7 +17,6 @@ const URGENCY_ORDER = { overdue: 0, urgent: 1, soon: 2, ok: 3 }
 interface PlanPart {
   id: string
   part_id: string
-  qty_per_intervention: number
   part: Part & { lead_time_days?: number | null }
 }
 
@@ -38,7 +37,6 @@ function calcStockStatus(planParts: PlanPart[], intervalDays: number, nextDueAt:
 
   for (const pp of planParts) {
     const part = pp.part
-    const qtyPerInt = pp.qty_per_intervention
     const stock = part.qty ?? 0
     const leadTime = part.lead_time_days ?? 0
 
@@ -127,7 +125,6 @@ function PlanPartsModal({ item, user, onClose }: {
         .insert({
           plan_id: item.id,
           part_id: selectedPartId,
-          qty_per_intervention: qty,
           organization_id: item.organization_id,
         })
         .select('*, part:parts(id, name, ref, qty, unit, location, lead_time_days)')
@@ -150,8 +147,6 @@ function PlanPartsModal({ item, user, onClose }: {
   const updateQty = async (ppId: string, newQty: number) => {
     if (newQty < 1) return
     try {
-      await supabase.from('preventive_plan_parts').update({ qty_per_intervention: newQty }).eq('id', ppId)
-      setPlanParts(prev => prev.map(p => p.id === ppId ? { ...p, qty_per_intervention: newQty } : p))
     } catch {}
   }
 
@@ -195,8 +190,6 @@ function PlanPartsModal({ item, user, onClose }: {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '.6px', color: 'var(--t3)' }}>Pièces associées</div>
               {planParts.map(pp => {
-                const stockOk = pp.part.qty >= pp.qty_per_intervention
-                const interventionsCovered = Math.floor(pp.part.qty / pp.qty_per_intervention)
                 const leadTime = pp.part.lead_time_days ?? 0
                 const daysBeforeStockout = interventionsCovered * item.interval_days
                 const needReorder = leadTime > 0 && daysBeforeStockout <= leadTime
@@ -212,9 +205,6 @@ function PlanPartsModal({ item, user, onClose }: {
                       </div>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
-                      <button onClick={() => updateQty(pp.id, pp.qty_per_intervention - 1)} style={{ width: 26, height: 26, borderRadius: 6, border: '1px solid rgba(255,255,255,.1)', background: 'transparent', color: 'var(--t1)', cursor: 'pointer' }}>−</button>
-                      <span style={{ width: 28, textAlign: 'center', fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: 13 }}>{pp.qty_per_intervention}</span>
-                      <button onClick={() => updateQty(pp.id, pp.qty_per_intervention + 1)} style={{ width: 26, height: 26, borderRadius: 6, border: '1px solid rgba(255,255,255,.1)', background: 'transparent', color: 'var(--t1)', cursor: 'pointer' }}>+</button>
                       <span style={{ fontSize: 10, color: 'var(--t3)' }}>{pp.part.unit}/int.</span>
                     </div>
                     <button onClick={() => removePart(pp.id)} style={{ width: 26, height: 26, borderRadius: 6, border: 'none', background: 'rgba(239,68,68,.15)', color: '#ef4444', cursor: 'pointer', fontSize: 14, flexShrink: 0 }}>×</button>
