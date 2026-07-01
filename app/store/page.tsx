@@ -325,7 +325,7 @@ function PartTechModal({ part, canEdit, user, onClose }: {
   part: Part; canEdit: boolean; user: any; onClose: () => void
 }) {
   const [tab, setTab] = useState<'specs' | 'docs'>('specs')
-  const [specs, setSpecs] = useState<Record<string, string>>((part as any).specs || {})
+const [specs, setSpecs] = useState<Record<string, string>>(() => { const raw = (part as any).specs; if (!raw) return {}; if (typeof raw === 'string') { try { return JSON.parse(raw) } catch { return {} } } return raw })
   const [docs, setDocs] = useState<any[]>([])
   const [docsLoading, setDocsLoading] = useState(true)
   const [uploading, setUploading] = useState(false)
