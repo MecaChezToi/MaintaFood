@@ -151,7 +151,9 @@ function DetailPanel({ part, stock, canEdit, onAdjust, onDeselect, isMobile }: {
   )
 
   const c = zoneColor(part.location)
+  const safetyStock = (part as any).safety_stock ?? null
   const low = part.qty <= part.min_qty
+  const belowSafety = safetyStock !== null && part.qty <= safetyStock
   const pct = Math.min(100, part.qty / Math.max(part.min_qty * 3, 1) * 100)
 
   return (
@@ -167,6 +169,7 @@ function DetailPanel({ part, stock, canEdit, onAdjust, onDeselect, isMobile }: {
           <span style={{ fontSize: 10, fontFamily: 'var(--font-mono)', background: 'var(--s3)', color: 'var(--t2)', padding: '2px 7px', borderRadius: 4, border: '1px solid var(--b0)' }}>{part.category}</span>
           <span style={{ fontSize: 10, fontFamily: 'var(--font-mono)', background: 'var(--s3)', color: 'var(--t2)', padding: '2px 7px', borderRadius: 4, border: '1px solid var(--b0)' }}>{part.unit}</span>
           {low && <span style={{ fontSize: 10, fontFamily: 'var(--font-mono)', background: 'rgba(255,71,87,.1)', color: 'var(--red)', padding: '2px 7px', borderRadius: 4 }}>STOCK CRITIQUE</span>}
+          {belowSafety && !low && <span style={{ fontSize: 10, fontFamily: 'var(--font-mono)', background: 'rgba(245,158,11,.1)', color: '#f59e0b', padding: '2px 7px', borderRadius: 4 }}>⚠️ SOUS SAFETY STOCK</span>}
         </div>
       </div>
 
@@ -189,12 +192,44 @@ function DetailPanel({ part, stock, canEdit, onAdjust, onDeselect, isMobile }: {
       <div style={{ padding: '14px 18px', borderBottom: '1px solid var(--b0)' }}>
         <div style={{ fontSize: 9, fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: 1, color: 'var(--t3)', marginBottom: 10 }}>📊 Stock</div>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 8 }}>
-          <span style={{ fontSize: 34, fontWeight: 800, fontFamily: 'var(--font-mono)', color: low ? 'var(--red)' : 'var(--acc)' }}>{part.qty}</span>
+          <span style={{ fontSize: 34, fontWeight: 800, fontFamily: 'var(--font-mono)', color: low ? 'var(--red)' : belowSafety ? '#f59e0b' : 'var(--acc)' }}>{part.qty}</span>
           <span style={{ fontSize: 12, color: 'var(--t2)', fontFamily: 'var(--font-mono)' }}>{part.unit} / min. {part.min_qty}</span>
         </div>
-        <div style={{ height: 5, background: 'rgba(255,255,255,.06)', borderRadius: 3, overflow: 'hidden', marginBottom: 12 }}>
-          <div style={{ height: '100%', width: `${pct}%`, background: low ? 'var(--red)' : 'var(--acc)', borderRadius: 3, transition: 'width .4s' }} />
+        {/* Barre de stock avec marqueur safety stock */}
+        <div style={{ position: 'relative', height: 5, background: 'rgba(255,255,255,.06)', borderRadius: 3, overflow: 'visible', marginBottom: 4 }}>
+          <div style={{ height: '100%', width: `${pct}%`, background: low ? 'var(--red)' : belowSafety ? '#f59e0b' : 'var(--acc)', borderRadius: 3, transition: 'width .4s' }} />
+          {safetyStock !== null && safetyStock > 0 && (
+            <div style={{
+              position: 'absolute', top: -3, left: `${Math.min(100, safetyStock / Math.max(part.min_qty * 3, 1) * 100)}%`,
+              width: 2, height: 11, background: '#f59e0b', borderRadius: 1,
+              transform: 'translateX(-50%)',
+            }} title={`Safety stock: ${safetyStock}`} />
+          )}
         </div>
+        {safetyStock !== null && (
+          <div style={{ fontSize: 10, color: '#f59e0b', fontFamily: 'var(--font-mono)', marginBottom: 10 }}>
+            Safety stock : {safetyStock} {part.unit}
+            {belowSafety && <span style={{ marginLeft: 8, fontWeight: 700 }}>⚠️ Commander maintenant</span>}
+          </div>
+        )}
+        {/* Champ safety stock éditable */}
+        {canEdit && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12, padding: '8px 10px', background: 'var(--s3)', borderRadius: 6, border: '1px solid var(--b0)' }}>
+            <span style={{ fontSize: 12, color: 'var(--t2)', flex: 1 }}>🛡️ Safety stock obligatoire</span>
+            <input
+              type="number" min={0}
+              defaultValue={safetyStock ?? ''}
+              placeholder="—"
+              style={{ width: 60, background: 'var(--bg)', border: '1px solid var(--b1)', borderRadius: 6, padding: '3px 7px', color: 'var(--t1)', fontSize: 12, fontFamily: 'var(--font-mono)', fontWeight: 700, textAlign: 'center' }}
+              onChange={async (e) => {
+                const val = parseInt(e.target.value)
+                const safety_stock = isNaN(val) ? null : val
+                try { await partsApi.update(part.id, { safety_stock } as any) } catch {}
+              }}
+            />
+            <span style={{ fontSize: 11, color: 'var(--t3)' }}>{part.unit}</span>
+          </div>
+        )}
         <button onClick={onAdjust} style={{ background: 'var(--acc)', color: '#000', border: 'none', borderRadius: 6, padding: '9px 14px', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'var(--font-outfit)', width: '100%' }}>
           {canEdit ? '± Ajuster le stock' : '📤 Déclarer une consommation'}
         </button>
@@ -625,6 +660,7 @@ export default function StorePage() {
   }), [stock, search, catFilter, zoneFilter])
 
   const lowStock = stock.filter(p => p.qty <= p.min_qty)
+  const belowSafetyStock = stock.filter(p => (p as any).safety_stock !== null && (p as any).safety_stock > 0 && p.qty <= (p as any).safety_stock && p.qty > p.min_qty)
   const totalVal = stock.reduce((s, p) => s + (p.qty * (p.price || 0)), 0)
   const cats = ['all', ...new Set(stock.map(p => p.category).filter(Boolean))]
 
@@ -708,8 +744,8 @@ export default function StorePage() {
         {[
           { l: 'Références', v: stock.length, c: 'var(--acc)' },
           { l: 'Stock critique', v: lowStock.length, c: lowStock.length > 0 ? 'var(--red)' : 'var(--acc)' },
+          { l: '🛡️ Safety stock', v: belowSafetyStock.length, c: belowSafetyStock.length > 0 ? '#f59e0b' : 'var(--acc)' },
           ...(canEdit ? [{ l: 'Valeur stock', v: `${totalVal.toFixed(0)} €`, c: 'var(--t1)' }] : []),
-          { l: 'Mouvements', v: moves.length, c: 'var(--t2)' },
         ].map(s => (
           <div key={s.l} className="stat-card">
             <div className="stat-value" style={{ color: s.c, fontSize: 26 }}>{s.v}</div>
@@ -757,10 +793,12 @@ export default function StorePage() {
               )}
               {filtered.map(p => {
                 const low = p.qty <= p.min_qty
+                const ss = (p as any).safety_stock
+                const belowSS = ss !== null && ss > 0 && p.qty <= ss && !low
                 const sel = selected?.id === p.id
                 return (
                   <div key={p.id} onClick={() => setSelected(sel ? null : p)}
-                    style={{ background: sel ? 'rgba(0,208,216,.06)' : 'var(--s1)', border: `1px solid ${low ? 'rgba(255,71,87,.25)' : sel ? 'rgba(0,208,216,.3)' : 'rgba(255,255,255,.06)'}`, borderRadius: 10, padding: 14, cursor: 'pointer' }}>
+                    style={{ background: sel ? 'rgba(0,208,216,.06)' : 'var(--s1)', border: `1px solid ${low ? 'rgba(255,71,87,.25)' : belowSS ? 'rgba(245,158,11,.25)' : sel ? 'rgba(0,208,216,.3)' : 'rgba(255,255,255,.06)'}`, borderRadius: 10, padding: 14, cursor: 'pointer' }}>
                     <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10 }}>
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
@@ -769,10 +807,11 @@ export default function StorePage() {
                         </div>
                         <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 2 }}>{p.name}</div>
                         <div style={{ fontSize: 11, color: 'var(--t2)' }}>{p.category}{p.supplier ? ` · ${p.supplier}` : ''}</div>
-                        {low && <div style={{ fontSize: 10, color: 'var(--red)', marginTop: 4, fontWeight: 600 }}>⚠ STOCK CRITIQUE</div>}
+                        {low && <div style={{ fontSize: 10, color: 'var(--red)', marginTop: 4, fontWeight: 600 }}>🔴 STOCK CRITIQUE</div>}
+                        {belowSS && <div style={{ fontSize: 10, color: '#f59e0b', marginTop: 4, fontWeight: 600 }}>⚠️ SOUS SAFETY STOCK ({ss} {p.unit} min.)</div>}
                       </div>
                       <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                        <div style={{ fontSize: 22, fontWeight: 800, fontFamily: 'var(--font-mono)', color: low ? 'var(--red)' : 'var(--t1)', lineHeight: 1 }}>{p.qty}</div>
+                        <div style={{ fontSize: 22, fontWeight: 800, fontFamily: 'var(--font-mono)', color: low ? 'var(--red)' : belowSS ? '#f59e0b' : 'var(--t1)', lineHeight: 1 }}>{p.qty}</div>
                         <div style={{ fontSize: 10, color: 'var(--t2)', marginBottom: 4 }}>{p.unit}</div>
                         <StockBar qty={p.qty} minQty={p.min_qty} />
                       </div>

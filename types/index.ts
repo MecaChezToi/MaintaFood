@@ -80,7 +80,8 @@ export interface Part {
   supplier_contact: string
   location: string
   location_detail: string
-  lead_time_days?: number | null
+  lead_time_days?: number | null 
+safety_stock?: number | null
   created_at: string
   updated_at: string
   equipment_ids?: string[]
