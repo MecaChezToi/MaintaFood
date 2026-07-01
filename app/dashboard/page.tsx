@@ -481,15 +481,68 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* Alertes */}
-      {foodAlerts.length > 0 && (
-        <div style={{ padding: '10px 14px', background: 'rgba(255,71,87,.08)', border: '1px solid rgba(255,71,87,.2)', borderRadius: 8, fontSize: 13, color: '#ff4757', display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-          🛡️ <strong>{foodAlerts.length}</strong> intervention(s) avec risque alimentaire non validée(s) — action requise
-        </div>
-      )}
-      {lowStock.length > 0 && !isTech && (
-        <div style={{ padding: '10px 14px', background: 'rgba(255,165,2,.08)', border: '1px solid rgba(255,165,2,.2)', borderRadius: 8, fontSize: 13, color: '#ffa502', display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-          📦 <strong>{lowStock.length}</strong> pièce(s) en stock critique
+      {/* Alertes — toujours visibles, pas de repli */}
+      {(foodAlerts.length > 0 || (lowStock.length > 0 && !isTech)) && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
+
+          {/* Alertes alimentaires */}
+          {foodAlerts.length > 0 && (
+            <div style={{ background: 'rgba(255,71,87,.06)', border: '1px solid rgba(255,71,87,.25)', borderRadius: 10, overflow: 'hidden' }}>
+              <div style={{ padding: '10px 14px', borderBottom: '1px solid rgba(255,71,87,.15)', display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ fontSize: 14 }}>🛡️</span>
+                <span style={{ fontSize: 13, fontWeight: 700, color: '#ff4757' }}>Risques alimentaires non clôturés</span>
+                <span style={{ marginLeft: 'auto', fontSize: 11, padding: '1px 7px', borderRadius: 20, background: 'rgba(255,71,87,.15)', color: '#ff4757', fontWeight: 700, fontFamily: 'var(--font-mono)' }}>{foodAlerts.length}</span>
+              </div>
+              {foodAlerts.slice(0, 3).map(i => {
+                const eq = equipments.find(e => e.id === i.equipment_id)
+                const sc = STATUS_CONFIG[i.status]
+                return (
+                  <a key={i.id} href="/interventions" style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 14px', borderBottom: '1px solid rgba(255,71,87,.08)', textDecoration: 'none' }}>
+                    <div style={{ width: 3, height: 32, borderRadius: 2, background: '#ff4757', flexShrink: 0 }} />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--t1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{i.title}</div>
+                      <div style={{ fontSize: 11, color: 'var(--t2)' }}>{eq?.name || '—'}</div>
+                    </div>
+                    <span style={{ fontSize: 10, padding: '2px 7px', borderRadius: 20, background: sc.bg, color: sc.color, fontWeight: 700, flexShrink: 0 }}>{sc.label}</span>
+                  </a>
+                )
+              })}
+              {foodAlerts.length > 3 && (
+                <a href="/interventions" style={{ display: 'block', padding: '8px 14px', fontSize: 11, color: '#ff4757', textDecoration: 'none', textAlign: 'center' }}>
+                  + {foodAlerts.length - 3} autre(s) →
+                </a>
+              )}
+            </div>
+          )}
+
+          {/* Stock critique */}
+          {lowStock.length > 0 && !isTech && (
+            <div style={{ background: 'rgba(255,165,2,.06)', border: '1px solid rgba(255,165,2,.25)', borderRadius: 10, overflow: 'hidden' }}>
+              <div style={{ padding: '10px 14px', borderBottom: '1px solid rgba(255,165,2,.15)', display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ fontSize: 14 }}>📦</span>
+                <span style={{ fontSize: 13, fontWeight: 700, color: '#ffa502' }}>Stock critique</span>
+                <span style={{ marginLeft: 'auto', fontSize: 11, padding: '1px 7px', borderRadius: 20, background: 'rgba(255,165,2,.15)', color: '#ffa502', fontWeight: 700, fontFamily: 'var(--font-mono)' }}>{lowStock.length}</span>
+              </div>
+              {lowStock.slice(0, 3).map(p => (
+                <a key={p.id} href="/magasin" style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 14px', borderBottom: '1px solid rgba(255,165,2,.08)', textDecoration: 'none' }}>
+                  <div style={{ width: 3, height: 32, borderRadius: 2, background: '#ffa502', flexShrink: 0 }} />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--t1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</div>
+                    <div style={{ fontSize: 11, color: 'var(--t2)', fontFamily: 'var(--font-mono)' }}>Réf: {p.ref} · {p.location || '—'}</div>
+                  </div>
+                  <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                    <div style={{ fontSize: 16, fontWeight: 800, color: '#ff4757', fontFamily: 'var(--font-mono)' }}>{p.qty}</div>
+                    <div style={{ fontSize: 10, color: 'var(--t3)' }}>min. {p.min_qty} {p.unit}</div>
+                  </div>
+                </a>
+              ))}
+              {lowStock.length > 3 && (
+                <a href="/magasin" style={{ display: 'block', padding: '8px 14px', fontSize: 11, color: '#ffa502', textDecoration: 'none', textAlign: 'center' }}>
+                  + {lowStock.length - 3} autre(s) →
+                </a>
+              )}
+            </div>
+          )}
         </div>
       )}
 
