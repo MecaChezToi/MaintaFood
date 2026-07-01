@@ -524,7 +524,7 @@ export default function DashboardPage() {
                 <span style={{ marginLeft: 'auto', fontSize: 11, padding: '1px 7px', borderRadius: 20, background: 'rgba(255,165,2,.15)', color: '#ffa502', fontWeight: 700, fontFamily: 'var(--font-mono)' }}>{lowStock.length}</span>
               </div>
               {lowStock.slice(0, 3).map(p => (
-                <a key={p.id} href="/magasin" style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 14px', borderBottom: '1px solid rgba(255,165,2,.08)', textDecoration: 'none' }}>
+                <a key={p.id} href="/store" style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 14px', borderBottom: '1px solid rgba(255,165,2,.08)', textDecoration: 'none' }}>
                   <div style={{ width: 3, height: 32, borderRadius: 2, background: '#ffa502', flexShrink: 0 }} />
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--t1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</div>
@@ -537,7 +537,7 @@ export default function DashboardPage() {
                 </a>
               ))}
               {lowStock.length > 3 && (
-                <a href="/magasin" style={{ display: 'block', padding: '8px 14px', fontSize: 11, color: '#ffa502', textDecoration: 'none', textAlign: 'center' }}>
+                <a href="/store" style={{ display: 'block', padding: '8px 14px', fontSize: 11, color: '#ffa502', textDecoration: 'none', textAlign: 'center' }}>
                   + {lowStock.length - 3} autre(s) →
                 </a>
               )}
