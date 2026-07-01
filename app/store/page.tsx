@@ -3,7 +3,7 @@
 import { useEffect, useState, useMemo } from 'react'
 import AppLayout from '@/components/layout/AppLayout'
 import { useAuth } from '@/components/layout/AuthProvider'
-import { partsApi, auditApi } from '@/lib/supabase'
+import { partsApi, auditApi, supabase } from '@/lib/supabase'
 import { useData } from '@/lib/DataStore'
 import type { Part } from '@/types'
 
@@ -320,6 +320,182 @@ function DetailPanel({ part, stock, canEdit, onAdjust, onDeselect, isMobile }: {
   )
 }
 
+// ─── MODAL FICHE TECHNIQUE ───────────────────────────────────
+function PartTechModal({ part, canEdit, user, onClose }: {
+  part: Part; canEdit: boolean; user: any; onClose: () => void
+}) {
+  const [tab, setTab] = useState<'specs' | 'docs'>('specs')
+  const [specs, setSpecs] = useState<Record<string, string>>((part as any).specs || {})
+  const [docs, setDocs] = useState<any[]>([])
+  const [docsLoading, setDocsLoading] = useState(true)
+  const [uploading, setUploading] = useState(false)
+  const [newKey, setNewKey] = useState('')
+  const [newVal, setNewVal] = useState('')
+
+  useEffect(() => {
+    supabase.from('part_documents').select('*').eq('part_id', part.id).order('created_at', { ascending: false })
+      .then(({ data }) => { setDocs(data || []); setDocsLoading(false) })
+  }, [part.id])
+
+  const saveSpecs = async (updated: Record<string, string>) => {
+    setSpecs(updated)
+    try { await partsApi.update(part.id, { specs: updated } as any) } catch {}
+  }
+
+  const addSpec = async () => {
+    if (!newKey.trim()) return
+    const updated = { ...specs, [newKey.trim()]: newVal.trim() }
+    await saveSpecs(updated)
+    setNewKey(''); setNewVal('')
+  }
+
+  const removeSpec = async (key: string) => {
+    const updated = { ...specs }
+    delete updated[key]
+    await saveSpecs(updated)
+  }
+
+  const uploadDoc = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setUploading(true)
+    try {
+      const path = `${(part as any).organization_id}/${part.id}/${Date.now()}_${file.name}`
+      const { error: upErr } = await supabase.storage.from('part-documents').upload(path, file)
+      if (upErr) throw upErr
+      const { data: { publicUrl } } = supabase.storage.from('part-documents').getPublicUrl(path)
+      const { data: doc, error: docErr } = await supabase.from('part_documents').insert({
+        part_id: part.id,
+        organization_id: (part as any).organization_id,
+        name: file.name,
+        file_url: publicUrl,
+        file_type: file.type,
+        created_by: user.id,
+      }).select().single()
+      if (docErr) throw docErr
+      setDocs(prev => [doc, ...prev])
+    } catch (e: any) { alert('Erreur upload : ' + e.message) }
+    setUploading(false)
+    e.target.value = ''
+  }
+
+  const deleteDoc = async (doc: any) => {
+    if (!confirm('Supprimer ce document ?')) return
+    try {
+      await supabase.from('part_documents').delete().eq('id', doc.id)
+      setDocs(prev => prev.filter(d => d.id !== doc.id))
+    } catch {}
+  }
+
+  const getFileIcon = (type: string) => {
+    if (type?.includes('pdf')) return '📄'
+    if (type?.includes('image')) return '🖼️'
+    if (type?.includes('model') || type?.endsWith('stl') || type?.endsWith('step')) return '🧊'
+    return '📎'
+  }
+
+  return (
+    <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
+      <div className="modal-box" style={{ maxWidth: 560 }}>
+        <div style={{ padding: '16px 20px 12px', borderBottom: '1px solid var(--b0)', flexShrink: 0 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+            <div>
+              <div style={{ fontSize: 16, fontWeight: 700 }}>🔧 Fiche technique</div>
+              <div style={{ fontSize: 11, color: 'var(--t2)', fontFamily: 'var(--font-mono)' }}>{part.ref} · {part.name}</div>
+            </div>
+            <button onClick={onClose} style={{ background: 'transparent', border: '1px solid var(--b1)', borderRadius: 6, color: 'var(--t2)', cursor: 'pointer', padding: '4px 8px', fontSize: 16 }}>×</button>
+          </div>
+          <div style={{ display: 'flex', gap: 6 }}>
+            {[['specs', '⚙️ Caractéristiques'], ['docs', '📁 Documents']].map(([k, l]) => (
+              <button key={k} onClick={() => setTab(k as any)}
+                style={{ padding: '5px 14px', borderRadius: 20, border: `1px solid ${tab === k ? 'var(--acc)' : 'rgba(255,255,255,.08)'}`, background: tab === k ? 'rgba(0,208,216,.1)' : 'transparent', color: tab === k ? 'var(--acc)' : 'var(--t2)', fontSize: 12, cursor: 'pointer', fontWeight: tab === k ? 600 : 400 }}>
+                {l}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="modal-body" style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 12 }}>
+          {/* ONGLET CARACTÉRISTIQUES */}
+          {tab === 'specs' && (
+            <>
+              {Object.keys(specs).length === 0 && (
+                <div style={{ textAlign: 'center', padding: '20px 0', color: 'var(--t3)', fontSize: 13 }}>
+                  <div style={{ fontSize: 28, marginBottom: 8 }}>⚙️</div>
+                  Aucune caractéristique définie
+                </div>
+              )}
+              {Object.entries(specs).map(([k, v]) => (
+                <div key={k} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', background: 'var(--s3)', borderRadius: 8, border: '1px solid var(--b0)' }}>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 10, fontFamily: 'var(--font-mono)', color: 'var(--t3)', textTransform: 'uppercase', letterSpacing: '.6px' }}>{k}</div>
+                    <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--acc)', fontFamily: 'var(--font-mono)' }}>{v}</div>
+                  </div>
+                  {canEdit && (
+                    <button onClick={() => removeSpec(k)} style={{ background: 'rgba(239,68,68,.15)', border: 'none', borderRadius: 6, color: '#ef4444', cursor: 'pointer', padding: '4px 8px', fontSize: 13 }}>×</button>
+                  )}
+                </div>
+              ))}
+              {canEdit && (
+                <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
+                  <input className="form-input" placeholder="Ex: Tension" value={newKey} onChange={e => setNewKey(e.target.value)} style={{ flex: 1 }} />
+                  <input className="form-input" placeholder="Ex: 24V DC" value={newVal} onChange={e => setNewVal(e.target.value)} style={{ flex: 1 }}
+                    onKeyDown={e => e.key === 'Enter' && addSpec()} />
+                  <button onClick={addSpec} className="btn btn-primary btn-sm" disabled={!newKey.trim()}>+ Ajouter</button>
+                </div>
+              )}
+            </>
+          )}
+
+          {/* ONGLET DOCUMENTS */}
+          {tab === 'docs' && (
+            <>
+              {docsLoading && <div style={{ textAlign: 'center', color: 'var(--t2)', padding: 20 }}>Chargement…</div>}
+              {!docsLoading && docs.length === 0 && (
+                <div style={{ textAlign: 'center', padding: '20px 0', color: 'var(--t3)', fontSize: 13 }}>
+                  <div style={{ fontSize: 28, marginBottom: 8 }}>📁</div>
+                  Aucun document — uploadez une datasheet, un plan 3D…
+                </div>
+              )}
+              {docs.map(doc => (
+                <div key={doc.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', background: 'var(--s3)', border: '1px solid var(--b0)', borderRadius: 8 }}>
+                  <span style={{ fontSize: 22, flexShrink: 0 }}>{getFileIcon(doc.file_type)}</span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <a href={doc.file_url} target="_blank" rel="noopener noreferrer"
+                      style={{ fontSize: 13, fontWeight: 600, color: 'var(--acc)', textDecoration: 'none', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {doc.name}
+                    </a>
+                    <div style={{ fontSize: 10, color: 'var(--t3)', fontFamily: 'var(--font-mono)', marginTop: 2 }}>
+                      {new Date(doc.created_at).toLocaleDateString('fr-FR')}
+                    </div>
+                  </div>
+                  <a href={doc.file_url} target="_blank" rel="noopener noreferrer"
+                    style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid rgba(0,208,216,.25)', color: '#00d0d8', fontSize: 12, textDecoration: 'none', flexShrink: 0 }}>
+                    Ouvrir
+                  </a>
+                  {canEdit && (
+                    <button onClick={() => deleteDoc(doc)} style={{ background: 'rgba(239,68,68,.15)', border: 'none', borderRadius: 6, color: '#ef4444', cursor: 'pointer', padding: '4px 8px', fontSize: 13, flexShrink: 0 }}>×</button>
+                  )}
+                </div>
+              ))}
+              {canEdit && (
+                <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, padding: '12px', borderRadius: 8, border: '1.5px dashed rgba(0,208,216,.3)', cursor: 'pointer', color: '#00d0d8', fontSize: 13, fontWeight: 600, marginTop: 4 }}>
+                  {uploading ? '⏳ Upload en cours…' : '📎 Cliquez pour uploader un fichier (PDF, image, STL, STEP…)'}
+                  <input type="file" accept=".pdf,.png,.jpg,.jpeg,.gif,.stl,.step,.stp,.dxf" onChange={uploadDoc} style={{ display: 'none' }} disabled={uploading} />
+                </label>
+              )}
+            </>
+          )}
+        </div>
+
+        <div style={{ padding: '12px 20px', borderTop: '1px solid var(--b0)', display: 'flex', justifyContent: 'flex-end', flexShrink: 0 }}>
+          <button className="btn btn-ghost" onClick={onClose}>Fermer</button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ─── ADJUST MODAL ────────────────────────────────────────────
 function AdjustModal({ part, canEdit, onClose, onConfirm }: {
   part: Part; canEdit: boolean; onClose: () => void;
@@ -586,6 +762,7 @@ export default function StorePage() {
   const [zoneFilter, setZoneFilter] = useState('all')
   const [showAdj, setShowAdj] = useState<Part | null>(null)
   const [showAdd, setShowAdd] = useState(false)
+  const [showTech, setShowTech] = useState<Part | null>(null)
   const [toast, setToast] = useState<string | null>(null)
   const [isMobile, setIsMobile] = useState(false)
   const [localMoves, setLocalMoves] = useState<{partName:string;partRef:string;qty:number;date:string;tech:string;ot:string;type:string}[]>([])
@@ -868,6 +1045,7 @@ export default function StorePage() {
                       <button onClick={() => setShowAdj(p)} className="btn btn-ghost btn-sm" style={{ flex: 1, fontSize: 12 }}>
                         {canEdit ? '± Ajuster stock' : '📤 Déclarer consommation'}
                       </button>
+                      <button onClick={() => setShowTech(p)} className="btn btn-ghost btn-sm" style={{ fontSize: 12 }} title="Fiche technique">🔧</button>
                     </div>
                   </div>
                 )
@@ -928,6 +1106,7 @@ export default function StorePage() {
                           <div style={{ display: 'flex', gap: 5 }}>
                             <button onClick={() => setSelected(p)} className="btn btn-ghost btn-xs">📍</button>
                             <button onClick={() => setShowAdj(p)} className="btn btn-ghost btn-xs">{canEdit ? '±' : '📤'}</button>
+                            <button onClick={() => setShowTech(p)} className="btn btn-ghost btn-xs" title="Fiche technique">🔧</button>
                           </div>
                         </td>
                       </tr>
@@ -984,6 +1163,7 @@ export default function StorePage() {
 
       {showAdj && <AdjustModal part={showAdj} canEdit={canEdit} onClose={() => setShowAdj(null)} onConfirm={handleAdjust} />}
       {showAdd && canEdit && <AddPartModal onClose={() => setShowAdd(false)} onSave={handleAddPart} />}
+      {showTech && <PartTechModal part={showTech} canEdit={canEdit} user={user} onClose={() => setShowTech(null)} />}
     </AppLayout>
   )
 }
