@@ -82,7 +82,11 @@ export interface Part {
   location_detail: string
   lead_time_days?: number | null 
 safety_stock?: number | null
-  created_at: string
+supplier2?: string | null
+supplier2_ref?: string | null
+supplier2_contact?: string | null
+lead_time_days2?: number | null
+created_at: string
   updated_at: string
   equipment_ids?: string[]
   equipments?: Array<{ id: string; name: string }>

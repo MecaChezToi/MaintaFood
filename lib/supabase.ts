@@ -137,7 +137,7 @@ export const partsApi = {
 getAll: async (): Promise<Part[]> => {
     const { data, error } = await supabase
       .from('parts')
-     .select('id,name,ref,category,unit,qty,min_qty,price,supplier,supplier_ref,supplier_contact,location,location_detail,lead_time_days,safety_stock,organization_id,created_at,updated_at')
+     .select('id,name,ref,category,unit,qty,min_qty,price,supplier,supplier_ref,supplier_contact,supplier2,supplier2_ref,supplier2_contact,location,location_detail,lead_time_days,lead_time_days2,safety_stock,organization_id,created_at,updated_at')
       .order('name')
     ensureNoError(error, 'Chargement pieces')
     return data ?? []
