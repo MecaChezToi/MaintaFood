@@ -238,55 +238,75 @@ function DetailPanel({ part, stock, canEdit, onAdjust, onDeselect, isMobile }: {
 
       {/* Fournisseur */}
       <div style={{ padding: '14px 18px' }}>
-        <div style={{ fontSize: 9, fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: 1, color: 'var(--t3)', marginBottom: 10 }}>🏭 Fournisseur</div>
-        <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 4 }}>{part.supplier || '—'}</div>
-        {part.supplier_ref && <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--acc)', marginBottom: 8 }}>Réf: {part.supplier_ref}</div>}
-        {part.supplier_contact && (
-          <a href={`tel:${part.supplier_contact}`} style={{
-            display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--t1)',
-            textDecoration: 'none', padding: '8px 12px', background: 'var(--s3)',
-            borderRadius: 8, border: '1px solid var(--b0)', fontWeight: 500, marginBottom: 10,
-          }}>
-            📞 {part.supplier_contact}
-          </a>
-        )}
+        <div style={{ fontSize: 9, fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: 1, color: 'var(--t3)', marginBottom: 10 }}>🏭 Fournisseurs</div>
 
-        {/* Délai de réappro */}
-        {canEdit && (
-          <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', background: 'var(--s3)', borderRadius: 8, border: '1px solid var(--b0)' }}>
-            <span style={{ fontSize: 16 }}>🚚</span>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 10, fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '.6px', color: 'var(--t3)', marginBottom: 4 }}>Délai de réappro</div>
+        {/* Fournisseur 1 */}
+        <div style={{ padding: '10px 12px', background: 'var(--s3)', borderRadius: 8, border: '1px solid var(--b0)', marginBottom: 10 }}>
+          <div style={{ fontSize: 9, fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '.6px', color: '#00d0d8', marginBottom: 6 }}>Fournisseur principal</div>
+          <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 2 }}>{part.supplier || '—'}</div>
+          {part.supplier_ref && <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--acc)', marginBottom: 4 }}>Réf: {part.supplier_ref}</div>}
+          {part.supplier_contact && (
+            <a href={`tel:${part.supplier_contact}`} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--t1)', textDecoration: 'none', marginBottom: 6, fontWeight: 500 }}>
+              📞 {part.supplier_contact}
+            </a>
+          )}
+          {/* Délai réappro 1 */}
+          {canEdit ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4 }}>
+              <span style={{ fontSize: 11, color: 'var(--t2)' }}>🚚 Délai :</span>
+              <input type="number" min={0} defaultValue={(part as any).lead_time_days ?? ''}
+                placeholder="—" style={{ width: 60, background: 'var(--bg)', border: '1px solid var(--b1)', borderRadius: 6, padding: '3px 7px', color: 'var(--t1)', fontSize: 12, fontFamily: 'var(--font-mono)', fontWeight: 700, textAlign: 'center' }}
+                onChange={async (e) => {
+                  const val = parseInt(e.target.value)
+                  try { await partsApi.update(part.id, { lead_time_days: isNaN(val) ? null : val } as any) } catch {}
+                }} />
+              <span style={{ fontSize: 11, color: 'var(--t2)' }}>jours</span>
+              {(part as any).lead_time_days > 0 && <span style={{ fontSize: 10, color: '#f59e0b', fontWeight: 600 }}>≈{Math.round((part as any).lead_time_days / 7)}sem</span>}
+            </div>
+          ) : (part as any).lead_time_days > 0 && (
+            <div style={{ fontSize: 11, color: 'var(--t2)', marginTop: 4 }}>🚚 Délai : <strong>{(part as any).lead_time_days}j</strong></div>
+          )}
+        </div>
+
+        {/* Fournisseur 2 */}
+        <div style={{ padding: '10px 12px', background: 'var(--s3)', borderRadius: 8, border: '1px solid var(--b0)', marginBottom: 10 }}>
+          <div style={{ fontSize: 9, fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '.6px', color: '#a855f7', marginBottom: 6 }}>Fournisseur de secours</div>
+          {canEdit ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <input className="form-input" placeholder="Nom fournisseur 2" defaultValue={(part as any).supplier2 ?? ''}
+                style={{ fontSize: 13 }}
+                onBlur={async (e) => { try { await partsApi.update(part.id, { supplier2: e.target.value || null } as any) } catch {} }} />
+              <div style={{ display: 'flex', gap: 6 }}>
+                <input className="form-input" placeholder="Réf." defaultValue={(part as any).supplier2_ref ?? ''}
+                  style={{ flex: 1, fontSize: 12 }}
+                  onBlur={async (e) => { try { await partsApi.update(part.id, { supplier2_ref: e.target.value || null } as any) } catch {} }} />
+                <input className="form-input" placeholder="📞 Tél." defaultValue={(part as any).supplier2_contact ?? ''}
+                  style={{ flex: 1, fontSize: 12 }}
+                  onBlur={async (e) => { try { await partsApi.update(part.id, { supplier2_contact: e.target.value || null } as any) } catch {} }} />
+              </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <input
-                  type="number"
-                  min={0}
-                  defaultValue={(part as any).lead_time_days ?? ''}
-                  placeholder="—"
-                  style={{ width: 70, background: 'var(--bg)', border: '1px solid var(--b1)', borderRadius: 6, padding: '4px 8px', color: 'var(--t1)', fontSize: 13, fontFamily: 'var(--font-mono)', fontWeight: 700 }}
+                <span style={{ fontSize: 11, color: 'var(--t2)' }}>🚚 Délai :</span>
+                <input type="number" min={0} defaultValue={(part as any).lead_time_days2 ?? ''}
+                  placeholder="—" style={{ width: 60, background: 'var(--bg)', border: '1px solid var(--b1)', borderRadius: 6, padding: '3px 7px', color: 'var(--t1)', fontSize: 12, fontFamily: 'var(--font-mono)', fontWeight: 700, textAlign: 'center' }}
                   onChange={async (e) => {
                     const val = parseInt(e.target.value)
-                    const lead_time_days = isNaN(val) ? null : val
-                    try {
-                      await partsApi.update(part.id, { lead_time_days } as any)
-                    } catch {}
-                  }}
-                />
-                <span style={{ fontSize: 12, color: 'var(--t2)' }}>jours</span>
-                {(part as any).lead_time_days > 0 && (
-                  <span style={{ fontSize: 11, color: '#f59e0b', fontWeight: 600 }}>
-                    ≈ {Math.round((part as any).lead_time_days / 7)}sem
-                  </span>
-                )}
+                    try { await partsApi.update(part.id, { lead_time_days2: isNaN(val) ? null : val } as any) } catch {}
+                  }} />
+                <span style={{ fontSize: 11, color: 'var(--t2)' }}>jours</span>
+                {(part as any).lead_time_days2 > 0 && <span style={{ fontSize: 10, color: '#a855f7', fontWeight: 600 }}>≈{Math.round((part as any).lead_time_days2 / 7)}sem</span>}
               </div>
             </div>
-          </div>
-        )}
-        {!canEdit && (part as any).lead_time_days > 0 && (
-          <div style={{ fontSize: 12, color: 'var(--t2)', marginTop: 6 }}>
-            🚚 Délai réappro : <strong style={{ color: 'var(--t1)' }}>{(part as any).lead_time_days} jours</strong>
-          </div>
-        )}
+          ) : (part as any).supplier2 ? (
+            <div>
+              <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 2 }}>{(part as any).supplier2}</div>
+              {(part as any).supplier2_ref && <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: '#a855f7', marginBottom: 4 }}>Réf: {(part as any).supplier2_ref}</div>}
+              {(part as any).supplier2_contact && <div style={{ fontSize: 12, color: 'var(--t2)' }}>📞 {(part as any).supplier2_contact}</div>}
+              {(part as any).lead_time_days2 > 0 && <div style={{ fontSize: 11, color: 'var(--t2)', marginTop: 4 }}>🚚 Délai : <strong>{(part as any).lead_time_days2}j</strong></div>}
+            </div>
+          ) : (
+            <div style={{ fontSize: 12, color: 'var(--t3)', fontStyle: 'italic' }}>Aucun fournisseur de secours défini</div>
+          )}
+        </div>
 
         {canEdit && typeof part.price === 'number' && part.price > 0 && (
           <div style={{ marginTop: 10, fontSize: 12, color: 'var(--t2)' }}>
@@ -433,7 +453,7 @@ function AdjustModal({ part, canEdit, onClose, onConfirm }: {
 
 // ─── ADD PART MODAL ───────────────────────────────────────────
 function AddPartModal({ onClose, onSave }: { onClose: () => void; onSave: (part: Partial<Part>) => void }) {
-  const [f, setF] = useState({ ref: '', name: '', category: 'Filtration', unit: 'pcs', qty: 0, min_qty: 1, price: 0, supplier: '', supplier_ref: '', supplier_contact: '', location: 'A1', location_detail: '', lead_time_days: 0 })
+  const [f, setF] = useState({ ref: '', name: '', category: 'Filtration', unit: 'pcs', qty: 0, min_qty: 1, price: 0, supplier: '', supplier_ref: '', supplier_contact: '', supplier2: '', supplier2_ref: '', supplier2_contact: '', location: 'A1', location_detail: '', lead_time_days: 0, lead_time_days2: 0 })
   const s = (k: string, v: any) => setF(p => ({ ...p, [k]: v }))
 
   return (
@@ -512,10 +532,33 @@ function AddPartModal({ onClose, onSave }: { onClose: () => void; onSave: (part:
             </div>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-            <label className="form-label">🚚 Délai de réappro (jours) <span style={{ color: 'var(--t3)', fontWeight: 400 }}>— utilisé pour l'anticipation stock préventif</span></label>
+            <label className="form-label">🚚 Délai réappro fournisseur 1 (jours)</label>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               <input className="form-input" type="number" min={0} value={f.lead_time_days} onChange={e => s('lead_time_days', parseInt(e.target.value) || 0)} style={{ maxWidth: 100 }} />
-              <span style={{ fontSize: 12, color: 'var(--t2)' }}>jours {f.lead_time_days > 0 ? `≈ ${Math.round(f.lead_time_days / 7)} semaine${Math.round(f.lead_time_days / 7) > 1 ? 's' : ''}` : ''}</span>
+              <span style={{ fontSize: 12, color: 'var(--t2)' }}>jours {f.lead_time_days > 0 ? `≈ ${Math.round(f.lead_time_days / 7)} sem.` : ''}</span>
+            </div>
+          </div>
+          <div style={{ height: 1, background: 'var(--b0)', margin: '4px 0' }} />
+          <div style={{ fontSize: 12, fontWeight: 600, color: '#a855f7' }}>🔄 Fournisseur de secours</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+            <label className="form-label">Nom fournisseur 2</label>
+            <input className="form-input" placeholder="ex: RS Components" value={f.supplier2} onChange={e => s('supplier2', e.target.value)} />
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+              <label className="form-label">Réf. fournisseur 2</label>
+              <input className="form-input" placeholder="ex: REF-002" value={f.supplier2_ref} onChange={e => s('supplier2_ref', e.target.value)} />
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+              <label className="form-label">Téléphone 2</label>
+              <input className="form-input" placeholder="ex: 01 23 45 67 89" value={f.supplier2_contact} onChange={e => s('supplier2_contact', e.target.value)} />
+            </div>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+            <label className="form-label">🚚 Délai réappro fournisseur 2 (jours)</label>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <input className="form-input" type="number" min={0} value={f.lead_time_days2} onChange={e => s('lead_time_days2', parseInt(e.target.value) || 0)} style={{ maxWidth: 100 }} />
+              <span style={{ fontSize: 12, color: 'var(--t2)' }}>jours {f.lead_time_days2 > 0 ? `≈ ${Math.round(f.lead_time_days2 / 7)} sem.` : ''}</span>
             </div>
           </div>
         </div>
