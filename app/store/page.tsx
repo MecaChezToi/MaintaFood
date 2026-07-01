@@ -879,9 +879,9 @@ export default function StorePage() {
     )
   }), [stock, search, catFilter, zoneFilter])
 
-  const lowStock = stock.filter(p => p.qty <= p.min_qty)
-  const belowSafetyStock = stock.filter(p => (p as any).safety_stock !== null && (p as any).safety_stock > 0 && p.qty <= (p as any).safety_stock && p.qty > p.min_qty)
-  const totalVal = stock.reduce((s, p) => s + (p.qty * (p.price || 0)), 0)
+  const lowStock = useMemo(() => stock.filter(p => p.qty <= p.min_qty), [stock])
+  const belowSafetyStock = useMemo(() => stock.filter(p => (p as any).safety_stock != null && (p as any).safety_stock > 0 && p.qty <= (p as any).safety_stock && p.qty > p.min_qty), [stock])
+  const totalVal = useMemo(() => stock.reduce((s, p) => s + (p.qty * (p.price || 0)), 0), [stock])
   const cats = ['all', ...new Set(stock.map(p => p.category).filter(Boolean))]
 
   const handleAdjust = async (delta: number, reason: string, type: string) => {
